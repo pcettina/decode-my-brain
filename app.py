@@ -12,10 +12,13 @@ To run:
 Author: Decode My Brain Team
 """
 
+import logging
 import streamlit as st
 import numpy as np
 import pandas as pd
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Local imports
 from simulation import (
@@ -98,6 +101,11 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 )
 
 # Custom CSS for better styling
@@ -235,6 +243,20 @@ def init_session_state():
     if 'challenge_spikes' not in st.session_state:
         st.session_state.challenge_spikes = None
 
+    # Auto-generate demo simulation so the app isn't empty on first load
+    if not st.session_state.simulated:
+        demo_neurons = generate_neuron_population(50, seed=42)
+        demo_spikes, demo_dirs = simulate_random_trials(
+            20, demo_neurons, duration_ms=500, seed=42
+        )
+        st.session_state.update(
+            neurons=demo_neurons,
+            spike_counts=demo_spikes,
+            true_directions=demo_dirs,
+            simulated=True
+        )
+        logger.info("Auto-generated demo simulation: 50 neurons, 20 trials")
+
 
 init_session_state()
 
@@ -274,25 +296,101 @@ with st.sidebar:
     *Built for teaching neural coding concepts*
     """)
 
+    st.markdown("---")
+    st.subheader("Simulation Controls")
+
+    n_neurons = st.slider(
+        "Number of Neurons (N)",
+        min_value=10, max_value=200, value=st.session_state.n_neurons,
+        help="More neurons = better direction representation"
+    )
+    baseline_rate = st.slider(
+        "Baseline Rate r0 (Hz)",
+        min_value=1.0, max_value=20.0, value=st.session_state.baseline_rate, step=0.5,
+        help="Firing rate when stimulus is opposite to preferred direction"
+    )
+    modulation_depth = st.slider(
+        "Modulation Depth k (Hz)",
+        min_value=5.0, max_value=40.0, value=st.session_state.modulation_depth, step=1.0,
+        help="How much firing rate increases at preferred direction"
+    )
+    duration_ms = st.slider(
+        "Trial Duration (ms)",
+        min_value=100, max_value=2000, value=st.session_state.duration_ms, step=50,
+        help="Longer trials = more spikes = better signal"
+    )
+    variance_scale = st.slider(
+        "Variance Scale",
+        min_value=0.5, max_value=3.0, value=st.session_state.variance_scale, step=0.1,
+        help="1.0 = standard Poisson, >1 = overdispersed, <1 = underdispersed"
+    )
+    n_trials = st.slider(
+        "Number of Trials",
+        min_value=1, max_value=100, value=st.session_state.n_trials,
+        help="Number of trials to simulate"
+    )
+
+    if st.button("Simulate Trials", type="primary", use_container_width=True):
+        st.session_state.n_neurons = n_neurons
+        st.session_state.duration_ms = duration_ms
+        st.session_state.baseline_rate = baseline_rate
+        st.session_state.modulation_depth = modulation_depth
+        st.session_state.variance_scale = variance_scale
+        st.session_state.n_trials = n_trials
+
+        try:
+            neurons = generate_neuron_population(
+                n_neurons=n_neurons,
+                baseline_rate=baseline_rate,
+                modulation_depth=modulation_depth
+            )
+            st.session_state.neurons = neurons
+
+            spike_counts, true_directions = simulate_random_trials(
+                n_trials=n_trials,
+                neurons=neurons,
+                duration_ms=duration_ms,
+                variance_scale=variance_scale
+            )
+            st.session_state.spike_counts = spike_counts
+            st.session_state.true_directions = true_directions
+            st.session_state.simulated = True
+
+            for key in ['hierarchy', 'hierarchy_data', 'manifold_data',
+                        'manifold_model', 'explained_variance',
+                        'live_spike_times', 'live_time_ms', 'live_theta',
+                        'walkthrough_spikes', 'walkthrough_theta', 'walkthrough_step',
+                        'game_active', 'game_theta', 'game_spikes', 'game_rounds',
+                        'round_submitted', 'last_result',
+                        'bci_cursor_pos', 'bci_target_pos', 'bci_trail',
+                        'bci_running', 'bci_hits', 'bci_attempts', 'bci_start_time']:
+                st.session_state.pop(key, None)
+
+            logger.info("Simulated %d trials with %d neurons", n_trials, n_neurons)
+            st.rerun()
+        except Exception:
+            logger.error("Simulation failed", exc_info=True)
+            st.error("Simulation failed. Try different parameters.")
+
 
 # =============================================================================
 # Main Content - Tabs
 # =============================================================================
 
-st.title("🧠 Decode My Brain")
+st.title("Decode My Brain")
 st.markdown("*Explore neural coding and decoding of movement direction*")
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
-    "📊 Simulation",
-    "👁️ Visualize", 
-    "🎮 Game",
-    "⚡ Live Activity",
-    "🎯 BCI Simulator",
-    "📚 Learn Decoding",
-    "🧠 Brain Areas",
-    "🌀 Neural Manifold",
-    "🏆 Challenges",
-    "🔬 Analysis"
+tab1, tab2, tab6, tab3, tab9, tab4, tab5, tab7, tab8, tab10 = st.tabs([
+    "Setup",
+    "Visualize",
+    "Learn Decoding",
+    "Game",
+    "Challenges",
+    "Live Activity",
+    "BCI Simulator",
+    "Brain Areas",
+    "Neural Manifold",
+    "Analysis"
 ])
 
 
@@ -301,104 +399,18 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
 # =============================================================================
 
 with tab1:
-    st.header("Simulation Controls")
+    st.header("Simulation Overview")
     st.markdown("""
-    Configure the neural population and simulate trials. Each neuron has a 
-    **preferred direction** and responds according to a cosine tuning curve:
-    
-    > λ(θ) = r₀ + k · cos(θ − μ)
-    
-    where r₀ is the baseline rate, k is the modulation depth, and μ is the 
+    Configure the neural population using the **sidebar controls**, then explore
+    results here. Each neuron has a **preferred direction** and responds according
+    to a cosine tuning curve:
+
+    > lambda(theta) = r0 + k * cos(theta - mu)
+
+    where r0 is the baseline rate, k is the modulation depth, and mu is the
     preferred direction.
     """)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.subheader("Population Parameters")
-        n_neurons = st.slider(
-            "Number of Neurons (N)",
-            min_value=10, max_value=200, value=st.session_state.n_neurons,
-            help="More neurons = better direction representation"
-        )
-        baseline_rate = st.slider(
-            "Baseline Rate r₀ (Hz)",
-            min_value=1.0, max_value=20.0, value=st.session_state.baseline_rate, step=0.5,
-            help="Firing rate when stimulus is opposite to preferred direction"
-        )
-        modulation_depth = st.slider(
-            "Modulation Depth k (Hz)",
-            min_value=5.0, max_value=40.0, value=st.session_state.modulation_depth, step=1.0,
-            help="How much firing rate increases at preferred direction"
-        )
-    
-    with col2:
-        st.subheader("Trial Parameters")
-        duration_ms = st.slider(
-            "Trial Duration (ms)",
-            min_value=100, max_value=2000, value=st.session_state.duration_ms, step=50,
-            help="Longer trials = more spikes = better signal"
-        )
-        variance_scale = st.slider(
-            "Variance Scale",
-            min_value=0.5, max_value=3.0, value=st.session_state.variance_scale, step=0.1,
-            help="1.0 = standard Poisson, >1 = overdispersed, <1 = underdispersed"
-        )
-        n_trials = st.slider(
-            "Number of Trials",
-            min_value=1, max_value=100, value=st.session_state.n_trials,
-            help="Number of trials to simulate"
-        )
-    
-    with col3:
-        st.subheader("Actions")
-        st.markdown("")
-        st.markdown("")
-        
-        if st.button("🚀 Simulate Trials", type="primary", use_container_width=True):
-            # Update session state
-            st.session_state.n_neurons = n_neurons
-            st.session_state.duration_ms = duration_ms
-            st.session_state.baseline_rate = baseline_rate
-            st.session_state.modulation_depth = modulation_depth
-            st.session_state.variance_scale = variance_scale
-            st.session_state.n_trials = n_trials
-            
-            # Generate neuron population
-            with st.spinner("Generating neural population..."):
-                neurons = generate_neuron_population(
-                    n_neurons=n_neurons,
-                    baseline_rate=baseline_rate,
-                    modulation_depth=modulation_depth
-                )
-                st.session_state.neurons = neurons
-            
-            # Simulate trials
-            with st.spinner(f"Simulating {n_trials} trials..."):
-                spike_counts, true_directions = simulate_random_trials(
-                    n_trials=n_trials,
-                    neurons=neurons,
-                    duration_ms=duration_ms,
-                    variance_scale=variance_scale
-                )
-                st.session_state.spike_counts = spike_counts
-                st.session_state.true_directions = true_directions
-                st.session_state.simulated = True
 
-                # Clear all derived state to prevent stale data
-                for key in ['hierarchy', 'hierarchy_data', 'manifold_data',
-                            'manifold_model', 'explained_variance',
-                            'live_spike_times', 'live_time_ms', 'live_theta',
-                            'walkthrough_spikes', 'walkthrough_theta', 'walkthrough_step',
-                            'game_active', 'game_theta', 'game_spikes', 'game_rounds',
-                            'round_submitted', 'last_result',
-                            'bci_cursor_pos', 'bci_target_pos', 'bci_trail',
-                            'bci_running', 'bci_hits', 'bci_attempts', 'bci_start_time']:
-                    st.session_state.pop(key, None)
-
-            st.success(f"✅ Simulated {n_trials} trials with {n_neurons} neurons!")
-            st.rerun()
-    
     # Show simulation summary
     if st.session_state.simulated:
         st.markdown("---")
@@ -631,11 +643,20 @@ with tab3:
                 
                 # User input
                 if not st.session_state.round_submitted:
-                    user_guess_deg = st.slider(
-                        "Your guess (degrees)",
-                        0, 359, 180,
-                        help="Slide to select the direction you think this activity represents"
-                    )
+                    guess_col1, guess_col2 = st.columns([3, 1])
+                    with guess_col1:
+                        user_guess_slider = st.slider(
+                            "Your guess (degrees)",
+                            0, 359, 180,
+                            help="Slide to select the direction you think this activity represents"
+                        )
+                    with guess_col2:
+                        user_guess_number = st.number_input(
+                            "Or type exact degrees:",
+                            min_value=0, max_value=359, value=180,
+                            key="game_number_input"
+                        )
+                    user_guess_deg = user_guess_number if user_guess_number != 180 else user_guess_slider
                     
                     if st.button("✅ Submit Guess", type="primary"):
                         # Compute results
@@ -1300,17 +1321,21 @@ with tab8:
                 help="Number of principal components to extract"
             )
             
-            if st.button("🔄 Compute Manifold", type="primary", use_container_width=True):
-                with st.spinner("Computing PCA..."):
-                    manifold_data, model, explained_var = compute_neural_manifold(
-                        spike_counts,
-                        n_components=n_components
-                    )
-                    st.session_state.manifold_data = manifold_data
-                    st.session_state.manifold_model = model
-                    st.session_state.explained_variance = explained_var
-                st.success("Manifold computed!")
-                st.rerun()
+            if st.button("Compute Manifold", type="primary", use_container_width=True):
+                try:
+                    with st.spinner("Computing PCA..."):
+                        manifold_data, model, explained_var = compute_neural_manifold(
+                            spike_counts,
+                            n_components=n_components
+                        )
+                        st.session_state.manifold_data = manifold_data
+                        st.session_state.manifold_model = model
+                        st.session_state.explained_variance = explained_var
+                    st.success("Manifold computed!")
+                    st.rerun()
+                except Exception:
+                    logger.error("Manifold computation failed", exc_info=True)
+                    st.error("Manifold computation failed. Try different parameters.")
             
             if st.session_state.manifold_data is not None:
                 st.markdown("---")
@@ -1512,7 +1537,12 @@ with tab9:
                     st.plotly_chart(fig_pattern, use_container_width=True)
                     
                     # User input
-                    user_guess = st.slider("Your Guess (°)", 0, 359, 180, key="challenge_guess")
+                    ch_col1, ch_col2 = st.columns([3, 1])
+                    with ch_col1:
+                        user_guess_slider = st.slider("Your Guess (°)", 0, 359, 180, key="challenge_guess")
+                    with ch_col2:
+                        user_guess_number = st.number_input("Or type:", min_value=0, max_value=359, value=180, key="challenge_number")
+                    user_guess = user_guess_number if user_guess_number != 180 else user_guess_slider
                     
                     if st.button("✅ Submit", type="primary"):
                         true_theta = st.session_state.challenge_theta
@@ -1584,23 +1614,22 @@ with tab10:
             
             with col1:
                 if run_analysis and noise_levels:
+                  try:
                     decoder = PopulationVectorDecoder() if decoder_type == "Population Vector" else MaximumLikelihoodDecoder()
-                    
+
                     mean_errors = []
                     std_errors = []
-                    
+
                     progress = st.progress(0)
-                    
+
                     for i, noise in enumerate(sorted(noise_levels)):
-                        # Simulate trials at this noise level
                         spike_counts, true_dirs = simulate_random_trials(
                             n_trials=n_test_trials,
                             neurons=neurons,
                             duration_ms=st.session_state.duration_ms,
                             variance_scale=noise
                         )
-                        
-                        # Evaluate decoder
+
                         results = evaluate_decoder(
                             decoder,
                             spike_counts,
@@ -1608,7 +1637,7 @@ with tab10:
                             neurons,
                             duration_s=st.session_state.duration_ms / 1000
                         )
-                        
+
                         mean_errors.append(results['mean_error_degrees'])
                         std_errors.append(results['std_error_degrees'])
                         progress.progress((i + 1) / len(noise_levels))
@@ -1623,6 +1652,9 @@ with tab10:
                     st.plotly_chart(fig, use_container_width=True)
                     
                     st.success("Analysis complete!")
+                  except Exception:
+                    logger.error("Analysis failed", exc_info=True)
+                    st.error("Analysis failed. Try different parameters.")
                 else:
                     st.info("Configure the analysis parameters and click **Run Analysis**")
         

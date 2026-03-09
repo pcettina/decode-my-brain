@@ -4,10 +4,13 @@ Utility functions for the Decode My Brain app.
 Contains angle math, unit conversions, and data export helpers.
 """
 
+import logging
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional
 import io
+
+logger = logging.getLogger(__name__)
 
 
 def wrap_angle(theta: float) -> float:

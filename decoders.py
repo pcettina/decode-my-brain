@@ -5,11 +5,14 @@ Implements population vector and maximum likelihood decoders
 for inferring movement direction from spike counts.
 """
 
+import logging
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 from simulation import NeuronPopulation, cosine_tuning
 from utils import wrap_angle, circular_mean
+
+logger = logging.getLogger(__name__)
 
 
 def _compute_poisson_log_likelihoods(
@@ -533,7 +536,7 @@ class KalmanFilterDecoder(Decoder):
         try:
             K = P_pred @ self.H.T @ np.linalg.inv(S)
         except np.linalg.LinAlgError:
-            # Fallback if S is singular
+            logger.warning("Singular innovation covariance, using pseudoinverse")
             K = P_pred @ self.H.T @ np.linalg.pinv(S)
         
         # State update

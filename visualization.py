@@ -4,10 +4,13 @@ Visualization helpers for the Decode My Brain app.
 Uses Plotly for interactive plots.
 """
 
+import logging
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 from plotly.subplots import make_subplots
 from typing import Optional, List, Tuple
 from simulation import NeuronPopulation
@@ -16,9 +19,9 @@ from utils import radians_to_degrees, wrap_angle
 
 # Color schemes
 NEURON_COLORSCALE = 'HSL'  # For coloring by preferred direction
-TRUE_COLOR = '#2ecc71'      # Green for true direction
-USER_COLOR = '#3498db'      # Blue for user guess
-MODEL_COLOR = '#e74c3c'     # Red for model decode
+TRUE_COLOR = '#3498db'      # Blue for true direction
+USER_COLOR = '#2ecc71'      # Green for user guess
+MODEL_COLOR = '#e67e22'     # Orange for model decode
 
 
 def get_direction_color(theta: float) -> str:

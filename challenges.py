@@ -4,11 +4,14 @@ Challenge modes and scoring system for Decode My Brain.
 Implements various competitive game modes with scoring, timing, and leaderboards.
 """
 
+import logging
 import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Dict, Callable, Tuple
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class ChallengeMode(Enum):

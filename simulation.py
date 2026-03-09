@@ -4,10 +4,13 @@ Neural population simulation for the Decode My Brain app.
 Implements cosine-tuned neurons and Poisson spike generation.
 """
 
+import logging
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 from utils import wrap_angle
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -84,6 +87,7 @@ def generate_neuron_population(
     if modulation_depth < 0:
         raise ValueError(f"modulation_depth must be >= 0, got {modulation_depth}")
 
+    logger.info("Generating population: %d neurons, r0=%.1f, k=%.1f", n_neurons, baseline_rate, modulation_depth)
     rng = np.random.default_rng(seed)
 
     if random_preferred:
