@@ -12,22 +12,67 @@ from simulation import NeuronPopulation, cosine_tuning
 from utils import wrap_angle, circular_mean
 
 
+def _compute_poisson_log_likelihoods(
+    theta_grid: np.ndarray,
+    spike_counts: np.ndarray,
+    neurons: NeuronPopulation,
+    duration_s: float
+) -> np.ndarray:
+    """
+    Compute Poisson log-likelihoods over a grid of candidate directions.
+
+    Vectorized: evaluates all (theta, neuron) pairs simultaneously.
+
+    Args:
+        theta_grid: 1D array of candidate directions (radians)
+        spike_counts: 1D array of spike counts per neuron
+        neurons: NeuronPopulation with tuning parameters
+        duration_s: Trial duration in seconds
+
+    Returns:
+        1D array of log-likelihoods for each candidate direction
+    """
+    # rates shape: (n_directions, n_neurons)
+    rates = cosine_tuning(
+        theta_grid[:, np.newaxis],
+        neurons.preferred_directions[np.newaxis, :],
+        neurons.baseline_rate,
+        neurons.modulation_depth
+    )
+    expected = np.maximum(rates * duration_s, 1e-10)
+    # log P(n|θ) = Σᵢ [nᵢ log(λᵢ) - λᵢ]
+    return np.log(expected) @ spike_counts - expected.sum(axis=1)
+
+
+def _validate_decode_inputs(spike_counts: np.ndarray, neurons: NeuronPopulation) -> None:
+    """Validate inputs common to all decoders."""
+    if len(spike_counts) == 0:
+        raise ValueError("spike_counts must not be empty")
+    if len(spike_counts) != neurons.n_neurons:
+        raise ValueError(
+            f"spike_counts length ({len(spike_counts)}) does not match "
+            f"neurons.n_neurons ({neurons.n_neurons})"
+        )
+
+
 class Decoder(ABC):
     """Abstract base class for neural decoders."""
-    
+
     @abstractmethod
     def decode(
         self,
         spike_counts: np.ndarray,
-        neurons: NeuronPopulation
+        neurons: NeuronPopulation,
+        duration_s: float = 0.5
     ) -> float:
         """
         Decode movement direction from spike counts.
-        
+
         Args:
             spike_counts: Array of spike counts for each neuron
             neurons: NeuronPopulation object with neuron parameters
-            
+            duration_s: Trial duration in seconds
+
         Returns:
             Estimated direction θ̂ in radians [0, 2π)
         """
@@ -55,20 +100,24 @@ class PopulationVectorDecoder(Decoder):
     def decode(
         self,
         spike_counts: np.ndarray,
-        neurons: NeuronPopulation
+        neurons: NeuronPopulation,
+        duration_s: float = 0.5
     ) -> float:
         """
         Decode using population vector method.
-        
+
         θ̂ = atan2(Σ nᵢ sin(μᵢ), Σ nᵢ cos(μᵢ))
-        
+
         Args:
             spike_counts: Array of spike counts for each neuron
             neurons: NeuronPopulation object
-            
+            duration_s: Trial duration in seconds (unused, for interface compatibility)
+
         Returns:
             Estimated direction in radians [0, 2π)
         """
+        _validate_decode_inputs(spike_counts, neurons)
+
         # Handle edge case of zero total spikes
         if np.sum(spike_counts) == 0:
             return 0.0
@@ -128,26 +177,10 @@ class MaximumLikelihoodDecoder(Decoder):
         Returns:
             Estimated direction in radians [0, 2π)
         """
-        log_likelihoods = np.zeros(self.n_grid_points)
-        
-        for i, theta in enumerate(self.theta_grid):
-            log_lik = 0.0
-            for j, mu in enumerate(neurons.preferred_directions):
-                # Compute expected rate (lambda)
-                rate = cosine_tuning(theta, mu, neurons.baseline_rate, 
-                                     neurons.modulation_depth)
-                expected_count = rate * duration_s
-                
-                # Avoid log(0) by adding small epsilon
-                expected_count = max(expected_count, 1e-10)
-                
-                # Log-likelihood for Poisson: n*log(λ) - λ (ignoring n! term)
-                n = spike_counts[j]
-                log_lik += n * np.log(expected_count) - expected_count
-            
-            log_likelihoods[i] = log_lik
-        
-        # Find maximum
+        _validate_decode_inputs(spike_counts, neurons)
+        log_likelihoods = _compute_poisson_log_likelihoods(
+            self.theta_grid, spike_counts, neurons, duration_s
+        )
         best_idx = np.argmax(log_likelihoods)
         return self.theta_grid[best_idx]
     
@@ -168,18 +201,10 @@ class MaximumLikelihoodDecoder(Decoder):
         Returns:
             Tuple of (theta_grid, normalized_likelihoods)
         """
-        log_likelihoods = np.zeros(self.n_grid_points)
-        
-        for i, theta in enumerate(self.theta_grid):
-            log_lik = 0.0
-            for j, mu in enumerate(neurons.preferred_directions):
-                rate = cosine_tuning(theta, mu, neurons.baseline_rate,
-                                     neurons.modulation_depth)
-                expected_count = max(rate * duration_s, 1e-10)
-                n = spike_counts[j]
-                log_lik += n * np.log(expected_count) - expected_count
-            log_likelihoods[i] = log_lik
-        
+        log_likelihoods = _compute_poisson_log_likelihoods(
+            self.theta_grid, spike_counts, neurons, duration_s
+        )
+
         # Convert to normalized probability (for visualization)
         # Subtract max for numerical stability before exp
         log_likelihoods -= np.max(log_likelihoods)
@@ -236,19 +261,12 @@ class NaiveBayesDecoder(Decoder):
         Returns:
             Estimated direction in radians [0, 2π)
         """
-        log_posteriors = np.zeros(self.n_grid_points)
-        
-        for i, theta in enumerate(self.theta_grid):
-            log_lik = 0.0
-            for j, mu in enumerate(neurons.preferred_directions):
-                rate = cosine_tuning(theta, mu, neurons.baseline_rate,
-                                     neurons.modulation_depth)
-                expected_count = max(rate * duration_s, 1e-10)
-                n = spike_counts[j]
-                log_lik += n * np.log(expected_count) - expected_count
-            
-            log_posteriors[i] = log_lik + self.log_prior[i]
-        
+        _validate_decode_inputs(spike_counts, neurons)
+        log_likelihoods = _compute_poisson_log_likelihoods(
+            self.theta_grid, spike_counts, neurons, duration_s
+        )
+        log_posteriors = log_likelihoods + self.log_prior
+
         best_idx = np.argmax(log_posteriors)
         return self.theta_grid[best_idx]
 
@@ -305,12 +323,7 @@ def evaluate_decoder(
     errors = np.zeros(n_trials)
     
     for i in range(n_trials):
-        if hasattr(decoder, 'decode') and 'duration_s' in decoder.decode.__code__.co_varnames:
-            decoded_directions[i] = decoder.decode(
-                spike_counts[i], neurons, duration_s
-            )
-        else:
-            decoded_directions[i] = decoder.decode(spike_counts[i], neurons)
+        decoded_directions[i] = decoder.decode(spike_counts[i], neurons, duration_s=duration_s)
         
         errors[i] = angular_error(true_directions[i], decoded_directions[i])
     
@@ -329,7 +342,7 @@ def evaluate_decoder(
 # Kalman Filter Decoder
 # =============================================================================
 
-class KalmanFilterDecoder:
+class KalmanFilterDecoder(Decoder):
     """
     Kalman Filter decoder for continuous state estimation.
     
@@ -571,6 +584,7 @@ class KalmanFilterDecoder:
         Returns:
             Decoded direction in radians
         """
+        _validate_decode_inputs(spike_counts, neurons)
         if not self.is_fitted:
             self.fit_from_neurons(neurons)
 
@@ -702,11 +716,7 @@ def compare_decoders(
         for i in range(len(true_directions)):
             if isinstance(decoder, KalmanFilterDecoder):
                 decoder.reset()
-                d = decoder.decode(spike_counts[i], neurons)
-            elif hasattr(decoder.decode, '__code__') and 'duration_s' in decoder.decode.__code__.co_varnames:
-                d = decoder.decode(spike_counts[i], neurons, duration_s)
-            else:
-                d = decoder.decode(spike_counts[i], neurons)
+            d = decoder.decode(spike_counts[i], neurons, duration_s=duration_s)
             
             decoded.append(d)
             errors.append(angular_error(true_directions[i], d))

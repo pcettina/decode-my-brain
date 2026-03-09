@@ -384,7 +384,18 @@ with tab1:
                 st.session_state.spike_counts = spike_counts
                 st.session_state.true_directions = true_directions
                 st.session_state.simulated = True
-            
+
+                # Clear all derived state to prevent stale data
+                for key in ['hierarchy', 'hierarchy_data', 'manifold_data',
+                            'manifold_model', 'explained_variance',
+                            'live_spike_times', 'live_time_ms', 'live_theta',
+                            'walkthrough_spikes', 'walkthrough_theta', 'walkthrough_step',
+                            'game_active', 'game_theta', 'game_spikes', 'game_rounds',
+                            'round_submitted', 'last_result',
+                            'bci_cursor_pos', 'bci_target_pos', 'bci_trail',
+                            'bci_running', 'bci_hits', 'bci_attempts', 'bci_start_time']:
+                    st.session_state.pop(key, None)
+
             st.success(f"✅ Simulated {n_trials} trials with {n_neurons} neurons!")
             st.rerun()
     

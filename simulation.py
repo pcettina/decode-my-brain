@@ -77,6 +77,13 @@ def generate_neuron_population(
     Returns:
         NeuronPopulation object with neuron parameters
     """
+    if n_neurons < 1:
+        raise ValueError(f"n_neurons must be >= 1, got {n_neurons}")
+    if baseline_rate < 0:
+        raise ValueError(f"baseline_rate must be >= 0, got {baseline_rate}")
+    if modulation_depth < 0:
+        raise ValueError(f"modulation_depth must be >= 0, got {modulation_depth}")
+
     rng = np.random.default_rng(seed)
 
     if random_preferred:
@@ -96,21 +103,21 @@ def generate_neuron_population(
 
 def cosine_tuning(
     theta: float | np.ndarray,
-    mu: float,
+    mu: float | np.ndarray,
     r0: float,
     k: float
 ) -> float | np.ndarray:
     """
     Compute firing rate using cosine tuning function.
-    
+
     λ(θ) = max(0, r₀ + k · cos(θ - μ))
-    
+
     Args:
         theta: Movement direction (radians), scalar or array
-        mu: Preferred direction of the neuron (radians)
+        mu: Preferred direction (radians), scalar or array (broadcasts with theta)
         r0: Baseline firing rate (Hz)
         k: Modulation depth (Hz)
-        
+
     Returns:
         Firing rate(s) in Hz, enforced non-negative
     """
@@ -138,16 +145,17 @@ def simulate_trial(
     Returns:
         Array of spike counts for each neuron
     """
+    if duration_ms <= 0:
+        raise ValueError(f"duration_ms must be > 0, got {duration_ms}")
+
     rng = np.random.default_rng(seed)
 
     # Convert duration to seconds
     duration_s = duration_ms / 1000.0
 
-    # Compute expected spike counts for each neuron
-    rates = np.array([
-        cosine_tuning(theta, mu, neurons.baseline_rate, neurons.modulation_depth)
-        for mu in neurons.preferred_directions
-    ])
+    # Compute expected spike counts for each neuron (vectorized over neurons)
+    rates = cosine_tuning(theta, neurons.preferred_directions,
+                          neurons.baseline_rate, neurons.modulation_depth)
     expected_counts = rates * duration_s
 
     # Generate spike counts
@@ -199,16 +207,19 @@ def simulate_raster(
     Returns:
         2D array of shape (n_neurons, n_bins) with spike counts per bin
     """
+    if duration_ms <= 0:
+        raise ValueError(f"duration_ms must be > 0, got {duration_ms}")
+    if bin_size_ms <= 0:
+        raise ValueError(f"bin_size_ms must be > 0, got {bin_size_ms}")
+
     rng = np.random.default_rng(seed)
 
     n_bins = int(np.ceil(duration_ms / bin_size_ms))
     raster = np.zeros((neurons.n_neurons, n_bins))
 
-    # Compute rates for each neuron
-    rates = np.array([
-        cosine_tuning(theta, mu, neurons.baseline_rate, neurons.modulation_depth)
-        for mu in neurons.preferred_directions
-    ])
+    # Compute rates for each neuron (vectorized)
+    rates = cosine_tuning(theta, neurons.preferred_directions,
+                          neurons.baseline_rate, neurons.modulation_depth)
 
     # Expected counts per bin
     bin_duration_s = bin_size_ms / 1000.0
@@ -420,6 +431,11 @@ def simulate_temporal_spikes(
         - spike_times: List of lists, spike_times[i] contains spike times for neuron i
         - spike_counts: Array of total spike counts per neuron
     """
+    if duration_ms <= 0:
+        raise ValueError(f"duration_ms must be > 0, got {duration_ms}")
+    if dt_ms <= 0:
+        raise ValueError(f"dt_ms must be > 0, got {dt_ms}")
+
     rng = np.random.default_rng(seed)
 
     if temporal_params is None:
@@ -431,11 +447,9 @@ def simulate_temporal_spikes(
     # Determine which neurons are bursting type
     is_bursting = rng.random(n_neurons) < temporal_params.burst_probability
 
-    # Base firing rates for each neuron
-    base_rates = np.array([
-        cosine_tuning(theta, mu, neurons.baseline_rate, neurons.modulation_depth)
-        for mu in neurons.preferred_directions
-    ])
+    # Base firing rates for each neuron (vectorized)
+    base_rates = cosine_tuning(theta, neurons.preferred_directions,
+                               neurons.baseline_rate, neurons.modulation_depth)
     
     # Initialize state variables
     spike_times = [[] for _ in range(n_neurons)]
@@ -553,11 +567,9 @@ def simulate_continuous_activity(
         # Get current direction
         theta = theta_func(t)
         
-        # Compute base rates
-        base_rates = np.array([
-            cosine_tuning(theta, mu, neurons.baseline_rate, neurons.modulation_depth)
-            for mu in neurons.preferred_directions
-        ])
+        # Compute base rates (vectorized over neurons)
+        base_rates = cosine_tuning(theta, neurons.preferred_directions,
+                                   neurons.baseline_rate, neurons.modulation_depth)
         
         # Apply adaptation
         decay = np.exp(-dt_ms / temporal_params.adaptation_tau_ms)

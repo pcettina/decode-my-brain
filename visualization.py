@@ -7,6 +7,7 @@ Uses Plotly for interactive plots.
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import streamlit as st
 from plotly.subplots import make_subplots
 from typing import Optional, List, Tuple
 from simulation import NeuronPopulation
@@ -34,6 +35,7 @@ def get_direction_color(theta: float) -> str:
     return f'hsl({hue}, 70%, 50%)'
 
 
+@st.cache_data
 def plot_tuning_curves(
     neurons: NeuronPopulation,
     highlight_theta: Optional[float] = None,
@@ -111,6 +113,7 @@ def plot_tuning_curves(
     return fig
 
 
+@st.cache_data
 def plot_raster_heatmap(
     spike_counts: np.ndarray,
     neurons: NeuronPopulation,
@@ -195,6 +198,7 @@ def plot_raster_heatmap(
     return fig
 
 
+@st.cache_data
 def plot_population_bar(
     spike_counts: np.ndarray,
     neurons: NeuronPopulation,
@@ -308,6 +312,7 @@ def plot_population_bar(
     return fig
 
 
+@st.cache_data
 def plot_polar_comparison(
     true_theta: float,
     user_theta: Optional[float] = None,
@@ -1157,24 +1162,10 @@ def create_ml_decoder_step(
     Returns:
         Plotly Figure
     """
-    from simulation import cosine_tuning
-    
-    theta_grid = np.linspace(0, 2*np.pi, 360)
-    
-    # Compute full likelihood
-    log_likelihoods = np.zeros(len(theta_grid))
-    for i, theta in enumerate(theta_grid):
-        log_lik = 0
-        for j, mu in enumerate(neurons.preferred_directions):
-            rate = cosine_tuning(theta, mu, neurons.baseline_rate, neurons.modulation_depth)
-            expected = max(rate * duration_s, 1e-10)
-            log_lik += spike_counts[j] * np.log(expected) - expected
-        log_likelihoods[i] = log_lik
-    
-    # Normalize
-    log_likelihoods -= np.max(log_likelihoods)
-    likelihoods = np.exp(log_likelihoods)
-    likelihoods /= np.sum(likelihoods)
+    from decoders import MaximumLikelihoodDecoder
+
+    ml = MaximumLikelihoodDecoder(n_grid_points=360)
+    theta_grid, likelihoods = ml.get_likelihood_curve(spike_counts, neurons, duration_s)
     
     fig = go.Figure()
     theta_deg = radians_to_degrees(theta_grid)
@@ -1374,6 +1365,7 @@ def create_vector_animation_polar(
 # Neural Manifold / PCA Visualization
 # =============================================================================
 
+@st.cache_data
 def compute_neural_manifold(
     spike_data: np.ndarray,
     n_components: int = 3,
@@ -1410,6 +1402,7 @@ def compute_neural_manifold(
     return manifold_data, model, explained_var
 
 
+@st.cache_data
 def plot_neural_manifold_3d(
     manifold_data: np.ndarray,
     true_directions: np.ndarray,
@@ -1488,6 +1481,7 @@ def plot_neural_manifold_3d(
     return fig
 
 
+@st.cache_data
 def plot_neural_manifold_2d(
     manifold_data: np.ndarray,
     true_directions: np.ndarray,
@@ -1537,6 +1531,7 @@ def plot_neural_manifold_2d(
     return fig
 
 
+@st.cache_data
 def plot_variance_explained(
     explained_variance: np.ndarray,
     n_components: int = 10
@@ -1650,6 +1645,7 @@ def plot_manifold_by_area(
 # Brain Area Connectivity Visualization
 # =============================================================================
 
+@st.cache_data
 def plot_brain_connectivity(
     connectivity_matrix: np.ndarray,
     area_names: List[str]
@@ -1685,6 +1681,7 @@ def plot_brain_connectivity(
     return fig
 
 
+@st.cache_data
 def plot_area_comparison(
     area_data: dict,
     neurons_dict: dict,
