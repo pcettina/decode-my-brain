@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 from simulation import NeuronPopulation, cosine_tuning
 from utils import wrap_angle, circular_mean
+from config import LOG_EPSILON, ML_GRID_POINTS, KALMAN_DT
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def _compute_poisson_log_likelihoods(
         neurons.baseline_rate,
         neurons.modulation_depth
     )
-    expected = np.maximum(rates * duration_s, 1e-10)
+    expected = np.maximum(rates * duration_s, LOG_EPSILON)
     # log P(n|θ) = Σᵢ [nᵢ log(λᵢ) - λᵢ]
     return np.log(expected) @ spike_counts - expected.sum(axis=1)
 
@@ -147,10 +148,10 @@ class MaximumLikelihoodDecoder(Decoder):
     and returns the direction with maximum likelihood.
     """
     
-    def __init__(self, n_grid_points: int = 360):
+    def __init__(self, n_grid_points: int = ML_GRID_POINTS):
         """
         Initialize the ML decoder.
-        
+
         Args:
             n_grid_points: Number of candidate directions to evaluate
         """
@@ -362,7 +363,7 @@ class KalmanFilterDecoder(Decoder):
     def __init__(
         self,
         n_neurons: int,
-        dt: float = 0.05,  # 50ms time step
+        dt: float = KALMAN_DT,
         process_noise: float = 0.1,
         observation_noise: float = 1.0
     ):

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.git/
+tests/
+CLAUDE.md
+PROJECT_AUDIT_REPORT.md
+.github/
+.pytest_cache/
+.ruff_cache/

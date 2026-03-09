@@ -4,12 +4,16 @@ Challenge modes and scoring system for Decode My Brain.
 Implements various competitive game modes with scoring, timing, and leaderboards.
 """
 
+import json
 import logging
 import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Dict, Callable, Tuple
 from enum import Enum
+
+from config import MAX_LEADERBOARD_ENTRIES
 
 logger = logging.getLogger(__name__)
 
@@ -288,6 +292,8 @@ class ChallengeManager:
     Manages challenge state, scoring, and leaderboards.
     """
     
+    LEADERBOARD_PATH = Path("data/leaderboards.json")
+
     def __init__(self):
         """Initialize the challenge manager."""
         self.active_challenge: Optional[ChallengeConfig] = None
@@ -299,11 +305,9 @@ class ChallengeManager:
         self.best_streak: int = 0
         self.current_noise_level: float = 1.0
         self.trials_completed: int = 0
-        
-        # Leaderboards (in-memory, could be persisted)
-        self.leaderboards: Dict[ChallengeMode, List[ChallengeResult]] = {
-            mode: [] for mode in ChallengeMode
-        }
+
+        # Load persisted leaderboards or start fresh
+        self.leaderboards = self._load_leaderboard()
     
     def start_challenge(self, mode: ChallengeMode) -> ChallengeConfig:
         """
@@ -483,19 +487,46 @@ class ChallengeManager:
         return result
     
     def add_to_leaderboard(self, result: ChallengeResult) -> None:
-        """Add a result to the leaderboard."""
+        """Add a result to the leaderboard and persist."""
         leaderboard = self.leaderboards[result.mode]
         leaderboard.append(result)
-        
-        # Sort by score (higher is better for most modes)
+
         if result.mode == ChallengeMode.PRECISION:
-            # For precision, lower mean error is better
             leaderboard.sort(key=lambda x: x.mean_error)
         else:
             leaderboard.sort(key=lambda x: x.score, reverse=True)
-        
-        # Keep only top 10
-        self.leaderboards[result.mode] = leaderboard[:10]
+
+        self.leaderboards[result.mode] = leaderboard[:MAX_LEADERBOARD_ENTRIES]
+        self._save_leaderboard()
+
+    def _save_leaderboard(self) -> None:
+        """Persist leaderboards to disk."""
+        try:
+            self.LEADERBOARD_PATH.parent.mkdir(exist_ok=True)
+            data = {
+                mode.value: [r.to_dict() for r in results]
+                for mode, results in self.leaderboards.items()
+            }
+            with open(self.LEADERBOARD_PATH, 'w') as f:
+                json.dump(data, f)
+        except Exception:
+            logger.warning("Failed to save leaderboard", exc_info=True)
+
+    def _load_leaderboard(self) -> Dict[ChallengeMode, List[ChallengeResult]]:
+        """Load leaderboards from disk, or return empty ones."""
+        default = {mode: [] for mode in ChallengeMode}
+        if not self.LEADERBOARD_PATH.exists():
+            return default
+        try:
+            with open(self.LEADERBOARD_PATH) as f:
+                data = json.load(f)
+            return {
+                ChallengeMode(k): [ChallengeResult.from_dict(r) for r in v]
+                for k, v in data.items()
+            }
+        except Exception:
+            logger.warning("Failed to load leaderboard, starting fresh", exc_info=True)
+            return default
     
     def get_leaderboard(self, mode: ChallengeMode, n: int = 10) -> List[Dict]:
         """

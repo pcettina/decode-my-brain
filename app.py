@@ -29,13 +29,10 @@ from simulation import (
     compute_firing_rate_stats,
     create_lesioned_population,
     NeuronPopulation,
-    # Temporal dynamics
     TemporalParams,
     simulate_temporal_spikes,
     simulate_continuous_activity,
     spike_times_to_binned,
-    # Multi-area hierarchy
-    BrainArea,
     HierarchicalNetwork,
     create_hierarchical_network,
     simulate_hierarchical_trial
@@ -43,9 +40,7 @@ from simulation import (
 from decoders import (
     PopulationVectorDecoder,
     MaximumLikelihoodDecoder,
-    KalmanFilterDecoder,
-    evaluate_decoder,
-    compare_decoders
+    evaluate_decoder
 )
 from challenges import (
     ChallengeMode,
@@ -63,28 +58,23 @@ from visualization import (
     plot_condition_comparison,
     plot_likelihood_curve,
     create_scoreboard_table,
-    # New visualization functions
     create_spike_raster_snapshot,
     create_bci_canvas,
     create_bci_metrics_display,
     create_pv_decoder_step,
     create_ml_decoder_step,
     create_vector_animation_polar,
-    # Advanced visualizations
     compute_neural_manifold,
     plot_neural_manifold_3d,
     plot_neural_manifold_2d,
     plot_variance_explained,
     plot_brain_connectivity,
     plot_area_comparison,
-    plot_challenge_progress,
-    plot_leaderboard,
-    plot_achievement_badges
+    plot_leaderboard
 )
 from utils import (
     radians_to_degrees,
     degrees_to_radians,
-    angular_error,
     angular_error_degrees,
     export_to_npz,
     export_to_csv,
@@ -1247,7 +1237,7 @@ with tab7:
                         with c1:
                             st.metric("Neurons", area.neurons.n_neurons)
                         with c2:
-                            st.metric("Tuning Sharpness", f"{area.tuning_sharpness:.1f}")
+                            st.metric("Modulation Gain", f"{area.modulation_gain:.1f}")
                         with c3:
                             st.metric("Delay", f"{area.delay_ms:.0f} ms")
                 

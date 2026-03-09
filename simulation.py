@@ -9,6 +9,7 @@ import numpy as np
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 from utils import wrap_angle
+from config import ADAPTATION_INCREMENT, BURST_INITIATION_PROB, MAX_SPIKE_PROB_PER_BIN
 
 logger = logging.getLogger(__name__)
 
@@ -492,7 +493,7 @@ def simulate_temporal_spikes(
         # P(spike) = rate * dt / 1000 (convert Hz*ms to probability)
         spike_prob = adapted_rates * (dt_ms / 1000.0) * rel_refractory_factor * variance_scale
         spike_prob = np.where(in_abs_refractory, 0, spike_prob)
-        spike_prob = np.clip(spike_prob, 0, 0.5)  # Cap probability per bin
+        spike_prob = np.clip(spike_prob, 0, MAX_SPIKE_PROB_PER_BIN)
         
         # Handle bursting neurons - if in burst, force spike
         in_burst = burst_remaining > 0
@@ -506,12 +507,12 @@ def simulate_temporal_spikes(
             if spikes[i]:
                 spike_times[i].append(t)
                 last_spike_time[i] = t
-                adaptation_level[i] = min(1.0, adaptation_level[i] + 0.2)
+                adaptation_level[i] = min(1.0, adaptation_level[i] + ADAPTATION_INCREMENT)
 
                 # Handle burst initiation/continuation
                 if in_burst[i]:
                     burst_remaining[i] -= 1
-                elif is_bursting[i] and rng.random() < 0.3:
+                elif is_bursting[i] and rng.random() < BURST_INITIATION_PROB:
                     # Start a new burst
                     burst_remaining[i] = temporal_params.burst_spikes - 1
 
@@ -599,10 +600,12 @@ def simulate_continuous_activity(
         spike_prob = adapted_rates * (dt_ms / 1000.0) * rel_factor
         spike_prob = np.where(in_abs_refractory, 0, spike_prob)
         
-        # Bursting
+        # Clip before burst override (burst should bypass cap)
+        spike_prob = np.clip(spike_prob, 0, MAX_SPIKE_PROB_PER_BIN)
+
+        # Bursting — applied after clip so burst probability is preserved
         in_burst = burst_remaining > 0
         spike_prob = np.where(in_burst & ~in_abs_refractory, 0.9, spike_prob)
-        spike_prob = np.clip(spike_prob, 0, 0.5)
         
         # Generate spikes
         spikes = rng.random(n_neurons) < spike_prob
@@ -611,11 +614,11 @@ def simulate_continuous_activity(
             if spikes[i]:
                 spike_times[i].append(t)
                 last_spike_time[i] = t
-                adaptation_level[i] = min(1.0, adaptation_level[i] + 0.2)
+                adaptation_level[i] = min(1.0, adaptation_level[i] + ADAPTATION_INCREMENT)
 
                 if in_burst[i]:
                     burst_remaining[i] -= 1
-                elif is_bursting[i] and rng.random() < 0.3:
+                elif is_bursting[i] and rng.random() < BURST_INITIATION_PROB:
                     burst_remaining[i] = temporal_params.burst_spikes - 1
 
     return time_array, spike_times, instantaneous_rates
@@ -650,46 +653,6 @@ def spike_times_to_binned(
     return binned
 
 
-def compute_isi_statistics(spike_times: List[List[float]]) -> dict:
-    """
-    Compute inter-spike interval statistics.
-    
-    Args:
-        spike_times: List of spike time lists per neuron
-        
-    Returns:
-        Dictionary with ISI statistics
-    """
-    all_isis = []
-    neuron_isis = []
-    
-    for times in spike_times:
-        if len(times) > 1:
-            isis = np.diff(times)
-            neuron_isis.append(isis)
-            all_isis.extend(isis)
-    
-    if not all_isis:
-        return {
-            'mean_isi': 0,
-            'std_isi': 0,
-            'cv_isi': 0,
-            'min_isi': 0,
-            'max_isi': 0
-        }
-    
-    all_isis = np.array(all_isis)
-    mean_isi = np.mean(all_isis)
-    std_isi = np.std(all_isis)
-    
-    return {
-        'mean_isi': float(mean_isi),
-        'std_isi': float(std_isi),
-        'cv_isi': float(std_isi / mean_isi) if mean_isi > 0 else 0,
-        'min_isi': float(np.min(all_isis)),
-        'max_isi': float(np.max(all_isis))
-    }
-
 
 # =============================================================================
 # Multi-Brain-Area Hierarchical Network
@@ -703,14 +666,14 @@ class BrainArea:
     Attributes:
         name: Name of the brain area (e.g., 'M1', 'PMd', 'PPC')
         neurons: NeuronPopulation in this area
-        tuning_sharpness: How selective neurons are (higher = sharper tuning)
+        modulation_gain: Amplitude scaling factor for modulation depth (>1 = stronger)
         noise_level: Variability in neural responses
         delay_ms: Processing delay for this area
         description: Human-readable description
     """
     name: str
     neurons: NeuronPopulation
-    tuning_sharpness: float = 1.0
+    modulation_gain: float = 1.0
     noise_level: float = 1.0
     delay_ms: float = 0.0
     description: str = ""
@@ -764,7 +727,7 @@ class HierarchicalNetwork:
         areas['M1'] = BrainArea(
             name='M1',
             neurons=m1_neurons,
-            tuning_sharpness=1.5,  # Sharp tuning
+            modulation_gain=1.5,  # Sharp tuning
             noise_level=0.8,       # Low noise
             delay_ms=0.0,          # No delay (output area)
             description="Primary Motor Cortex - Direct movement execution"
@@ -779,7 +742,7 @@ class HierarchicalNetwork:
         areas['PMd'] = BrainArea(
             name='PMd',
             neurons=pmd_neurons,
-            tuning_sharpness=1.0,   # Moderate tuning
+            modulation_gain=1.0,   # Moderate tuning
             noise_level=1.0,        # Moderate noise
             delay_ms=20.0,          # 20ms ahead of M1
             description="Dorsal Premotor - Movement planning and preparation"
@@ -794,7 +757,7 @@ class HierarchicalNetwork:
         areas['PPC'] = BrainArea(
             name='PPC',
             neurons=ppc_neurons,
-            tuning_sharpness=0.7,   # Broad tuning
+            modulation_gain=0.7,   # Broad tuning
             noise_level=1.2,        # Higher noise
             delay_ms=50.0,          # 50ms ahead of M1
             description="Posterior Parietal - Spatial goals and intentions"
@@ -809,7 +772,7 @@ class HierarchicalNetwork:
         areas['SMA'] = BrainArea(
             name='SMA',
             neurons=sma_neurons,
-            tuning_sharpness=0.9,
+            modulation_gain=0.9,
             noise_level=1.1,
             delay_ms=30.0,
             description="Supplementary Motor Area - Movement sequences"
@@ -902,7 +865,7 @@ class HierarchicalNetwork:
             n_neurons=area.neurons.n_neurons,
             preferred_directions=area.neurons.preferred_directions,
             baseline_rate=area.neurons.baseline_rate,
-            modulation_depth=area.neurons.modulation_depth * area.tuning_sharpness
+            modulation_depth=area.neurons.modulation_depth * area.modulation_gain
         )
         
         # Simulate with area-specific noise
