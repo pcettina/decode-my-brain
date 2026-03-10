@@ -18,23 +18,40 @@ No external data files required — all neural activity is procedurally generate
 
 ## Architecture
 
-Six-module flat architecture (no subdirectories):
+Multipage Streamlit app using `st.navigation` with subpackage modules:
+
+### Entry Point & Pages
+
+| File | Purpose |
+|---|---|
+| `app.py` | Thin orchestrator: page config, session state init, sidebar controls, `st.navigation` routing. |
+| `pages/setup.py` | Simulation overview and parameter summary. |
+| `pages/learn.py` | Visualize neural code (tuning curves, rasters) + step-by-step decoder walkthrough. |
+| `pages/play.py` | Game mode (decode vs model) + challenge modes (speed, precision, noise, streak). |
+| `pages/explore.py` | Live activity, BCI simulator, multi-brain-area simulation, neural manifold (PCA). |
+| `pages/analyze.py` | Noise vs performance analysis, normal vs lesioned comparison, data export. |
+
+### Core Modules
 
 | Module | Purpose |
 |---|---|
-| `app.py` | Streamlit UI — 7-tab interface (Simulation, Visualize, Game, Analysis, Networks, Advanced Decoders, Achievements). Orchestrates all other modules. |
-| `simulation.py` | Neural population modeling: cosine tuning curves, Poisson spike generation, temporal dynamics (adaptation, refractory, bursting), hierarchical brain networks (`BrainArea`, `HierarchicalNetwork`). |
-| `decoders.py` | Abstract `Decoder` base class with implementations: Population Vector, Maximum Likelihood, Naive Bayes/MAP, Kalman Filter. Factory via `get_decoder(name)`. |
-| `visualization.py` | Plotly-based interactive plots: tuning curves, rasters, polar comparisons, neural manifolds (PCA), likelihood surfaces, BCI displays, connectivity matrices. |
-| `challenges.py` | Gamification: 5 modes (Speed Trial, Precision, Noise Gauntlet, Streak, Area Expert). `ChallengeManager` handles state/scoring, `AchievementManager` tracks 10 achievements. |
-| `utils.py` | Circular angle math (`wrap_angle`, `angular_error`, `circular_mean`), data export (NPZ/CSV), direction labeling. |
+| `simulation/` | Subpackage: `core.py` (NeuronPopulation, cosine tuning, spike generation), `temporal.py` (adaptation, refractory, bursting), `hierarchy.py` (BrainArea, HierarchicalNetwork). |
+| `decoders/` | Subpackage: `base.py` (Decoder ABC), `direction.py` (PopulationVector, MaximumLikelihood, NaiveBayes), `kalman.py` (KalmanFilter), `evaluation.py` (evaluate/compare). |
+| `visualization/` | Subpackage: `colors.py`, `tuning.py`, `raster.py`, `bci.py`, `walkthrough.py`, `manifold.py`, `network.py`, `analysis.py`. |
+| `engine/` | Game logic: `game.py` (GameEngine, GameResult, BCISimulator). |
+| `challenges.py` | Gamification: 4 modes (Speed, Precision, Noise Gauntlet, Streak). ChallengeManager + AchievementManager. |
+| `utils.py` | Circular angle math, data export (NPZ/CSV), direction labeling. |
+| `config.py` | Centralized constants (LOG_EPSILON, ML_GRID_POINTS, KALMAN_DT, etc.). |
+
+All subpackages use `__init__.py` re-exports so `from simulation import X` works.
 
 ## Key Design Patterns
 
 - **Dataclasses** for immutable config: `NeuronPopulation`, `TemporalParams`, `BrainArea`, `ChallengeConfig`, `ChallengeResult`
 - **ABC + Factory**: `Decoder` base class, `get_decoder()` factory function
 - **Enum**: `ChallengeMode` for type-safe challenge selection
-- **Streamlit session state** for challenge persistence; `@st.cache_resource` for expensive computations
+- **Streamlit session state** for challenge persistence; `@st.cache_data` for pure visualization functions
+- **Multipage navigation**: `st.navigation` with grouped pages (Getting Started, Interactive, Tools)
 
 ## Scientific Conventions
 
@@ -49,11 +66,10 @@ This project uses **Plotly** (not matplotlib) for all interactive visualizations
 
 ## Tech Stack
 
-Streamlit 1.28+, NumPy 1.24+, SciPy 1.10+, Plotly 5.18+, Pandas 2.0+, scikit-learn 1.3.0+. Python 3.8+.
+Streamlit 1.36+, NumPy 1.24+, SciPy 1.10+, Plotly 5.18+, Pandas 2.0+, scikit-learn 1.3.0+. Python 3.8+.
 
-## Current Gaps
+## Testing
 
-- No test suite — add `pytest` tests when modifying core logic
-- No CI/CD pipeline
-- Several modules exceed 600 lines (`app.py`, `simulation.py`, `visualization.py`) — consider splitting when making significant additions
-- Uses `print`/`st.write` instead of `logging` module for diagnostics
+- 273 tests in `tests/` — run with `pytest tests/ -v`
+- CI via `.github/workflows/ci.yml` (ruff lint + pytest)
+- Coverage: simulation, decoders, challenges, visualization, utils, config, engine, integration
