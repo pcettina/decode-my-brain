@@ -18,6 +18,31 @@ from config import MAX_LEADERBOARD_ENTRIES
 logger = logging.getLogger(__name__)
 
 
+# Human-readable scoring formula descriptions for each challenge mode.
+SCORING_DESCRIPTIONS: Dict[str, str] = {
+    'speed_trial': (
+        "**Scoring:** trials x 10 - mean error - penalties. "
+        "Errors over 45 degrees add extra penalties."
+    ),
+    'precision': (
+        "**Scoring:** 100 - mean error + bonus. "
+        "Bonus: +20 if mean < 10 deg, +10 if < 15 deg, +5 if < 20 deg."
+    ),
+    'noise_gauntlet': (
+        "**Scoring:** max noise level reached x 100 + accuracy bonus. "
+        "Accuracy bonus = max(0, 45 - mean error)."
+    ),
+    'streak': (
+        "**Scoring:** longest streak x 10 + accuracy bonus. "
+        "Accuracy bonus = (threshold - mean error) / 2."
+    ),
+    'area_expert': (
+        "**Scoring:** mean area score (100 - 2 x area error) + 25 completion bonus "
+        "for finishing all 4 areas."
+    ),
+}
+
+
 class ChallengeMode(Enum):
     """Available challenge modes."""
     SPEED_TRIAL = "speed_trial"
@@ -281,6 +306,58 @@ def score_area_expert(errors: List[float], area_errors: Dict[str, List[float]], 
     completion_bonus = 25 if len(area_errors) >= 4 else 0
     
     return base_score + completion_bonus
+
+
+def score_breakdown(result: 'ChallengeResult') -> Dict[str, float]:
+    """Compute a breakdown of score components for display.
+
+    Returns a dict with keys like 'Base', 'Penalties', 'Bonus', 'Total'.
+    """
+    mode = result.mode
+
+    if mode == ChallengeMode.SPEED_TRIAL:
+        base = result.trials_completed * 10
+        mean_err = result.mean_error
+        # Can't recompute per-trial penalties without the raw errors,
+        # so derive them: total = base - mean_err - penalties
+        penalties = max(0, base - mean_err - result.score)
+        return {
+            'Base (trials x 10)': base,
+            'Mean error deduction': -round(mean_err, 1),
+            'Large-error penalties': -round(penalties, 1),
+            'Total': round(result.score, 1),
+        }
+
+    if mode == ChallengeMode.PRECISION:
+        mean_err = result.mean_error
+        base = max(0.0, 100 - mean_err)
+        bonus = result.score - base
+        return {
+            'Base (100 - mean error)': round(base, 1),
+            'Accuracy bonus': round(bonus, 1),
+            'Total': round(result.score, 1),
+        }
+
+    if mode == ChallengeMode.NOISE_GAUNTLET:
+        noise_base = result.noise_level_reached * 100
+        accuracy_bonus = result.score - noise_base
+        return {
+            'Noise level reached x 100': round(noise_base, 1),
+            'Accuracy bonus': round(accuracy_bonus, 1),
+            'Total': round(result.score, 1),
+        }
+
+    if mode == ChallengeMode.STREAK:
+        streak_base = result.streak_length * 10
+        accuracy_bonus = result.score - streak_base
+        return {
+            'Streak x 10': round(streak_base, 1),
+            'Accuracy bonus': round(accuracy_bonus, 1),
+            'Total': round(result.score, 1),
+        }
+
+    # Area Expert or unknown
+    return {'Total': round(result.score, 1)}
 
 
 # =============================================================================

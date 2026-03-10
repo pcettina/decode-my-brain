@@ -1,4 +1,11 @@
-"""Play page - Game mode and challenge modes."""
+"""Play page - Game mode and challenge modes.
+
+Contains two tabs:
+  - **Decode My Brain**: guess movement direction from spike patterns
+    and compete against a model decoder.
+  - **Challenge Modes**: timed/scored competitive modes with leaderboards
+    and achievements.
+"""
 
 import numpy as np
 import streamlit as st
@@ -9,6 +16,8 @@ from engine.game import GameEngine
 from challenges import (
     ChallengeMode,
     CHALLENGE_CONFIGS,
+    SCORING_DESCRIPTIONS,
+    score_breakdown,
 )
 from visualization import (
     plot_population_bar,
@@ -113,20 +122,12 @@ with tab_game:
             st.plotly_chart(fig_game, use_container_width=True)
 
             if not st.session_state.round_submitted:
-                guess_col1, guess_col2 = st.columns([3, 1])
-                with guess_col1:
-                    user_guess_slider = st.slider(
-                        "Your guess (degrees)",
-                        0, 359, 180,
-                        help="Slide to select the direction you think this activity represents"
-                    )
-                with guess_col2:
-                    user_guess_number = st.number_input(
-                        "Or type exact degrees:",
-                        min_value=0, max_value=359, value=180,
-                        key="game_number_input"
-                    )
-                user_guess_deg = user_guess_number if user_guess_number != 180 else user_guess_slider
+                user_guess_deg = st.number_input(
+                    "Your guess (degrees)",
+                    min_value=0, max_value=359, value=180, step=1,
+                    help="Enter the direction you think this activity represents (0-359)",
+                    key="game_guess_input"
+                )
 
                 if st.button("Submit Guess", type="primary"):
                     game_result = GameEngine.submit_guess(
@@ -199,6 +200,7 @@ with tab_challenge:
     achievement_mgr = st.session_state.achievement_manager
 
     if not st.session_state.challenge_active:
+        # -- Mode selection --
         st.subheader("Select Challenge Mode")
 
         col1, col2 = st.columns(2)
@@ -223,7 +225,12 @@ with tab_challenge:
             st.markdown(config.description)
             st.markdown(f"*Difficulty: {config.difficulty.upper()}*")
 
-            player_name = st.text_input("Your Name", value="Player")
+            # Show scoring formula for the selected mode
+            formula = SCORING_DESCRIPTIONS.get(selected_mode.value, "")
+            if formula:
+                st.info(formula)
+
+            player_name = st.text_input("Your Name", value="Player", max_chars=30)
 
             if st.button("Start Challenge!", type="primary"):
                 challenge_mgr.start_challenge(selected_mode)
@@ -251,6 +258,7 @@ with tab_challenge:
             st.caption(f"{earned}/{total} achievements earned")
 
     else:
+        # -- Active challenge --
         state = challenge_mgr.get_state()
 
         col1, col2 = st.columns([2, 1])
@@ -291,7 +299,14 @@ with tab_challenge:
                 newly_earned = achievement_mgr.check_achievements(result)
 
                 st.success(f"Challenge Complete! Score: **{result.score:.1f}**")
-                st.metric("Final Mean Error", f"{result.mean_error:.1f}°")
+
+                # Score breakdown
+                breakdown = score_breakdown(result)
+                cols = st.columns(len(breakdown))
+                for col, (label, value) in zip(cols, breakdown.items()):
+                    with col:
+                        st.metric(label, f"{value:+.1f}" if label != "Total" else f"{value:.1f}")
+
                 st.metric("Trials Completed", result.trials_completed)
 
                 if newly_earned:
@@ -312,12 +327,12 @@ with tab_challenge:
                 )
                 st.plotly_chart(fig_pattern, use_container_width=True)
 
-                ch_col1, ch_col2 = st.columns([3, 1])
-                with ch_col1:
-                    user_guess_slider = st.slider("Your Guess (°)", 0, 359, 180, key="challenge_guess")
-                with ch_col2:
-                    user_guess_number = st.number_input("Or type:", min_value=0, max_value=359, value=180, key="challenge_number")
-                user_guess = user_guess_number if user_guess_number != 180 else user_guess_slider
+                user_guess = st.number_input(
+                    "Your guess (degrees)",
+                    min_value=0, max_value=359, value=180, step=1,
+                    help="Enter the direction you think this activity represents (0-359)",
+                    key="challenge_guess_input"
+                )
 
                 if st.button("Submit", type="primary"):
                     true_theta = st.session_state.challenge_theta

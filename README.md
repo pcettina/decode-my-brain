@@ -8,7 +8,7 @@ Built with Streamlit, NumPy, SciPy, and Plotly.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/decode-my-brain.git
+git clone https://github.com/pcettina/decode-my-brain.git
 cd decode-my-brain
 
 # Create virtual environment (recommended)
@@ -39,20 +39,15 @@ Simulates direction-tuned neural populations using cosine tuning curves and lets
 
 ## Features
 
-### 10 Interactive Tabs
+### 5 Pages (Multipage Navigation)
 
-| Tab | What it does |
-|-----|-------------|
+| Page | What it does |
+|------|-------------|
 | **Setup** | View simulation summary stats (controls are in the sidebar) |
-| **Visualize** | Tuning curves, spike heatmaps, population bar/polar plots |
-| **Learn Decoding** | Step-by-step walkthrough of Population Vector and ML decoders |
-| **Game** | Guess movement direction from spike patterns, compete against the model |
-| **Challenges** | 5 timed/scored modes: Speed Trial, Precision, Noise Gauntlet, Streak, Area Expert |
-| **Live Activity** | Real-time temporal spike dynamics with adaptation, refractory periods, bursting |
-| **BCI Simulator** | Kalman filter-based cursor control from neural activity |
-| **Brain Areas** | Hierarchical network (M1, PMd, PPC, SMA) with inter-area connectivity |
-| **Neural Manifold** | PCA dimensionality reduction of population activity |
-| **Analysis** | Noise vs. performance curves, normal vs. lesioned populations, data export |
+| **Learn** | Tuning curves, spike heatmaps, population bar/polar plots; step-by-step PV and ML decoder walkthrough |
+| **Play** | Guess movement direction from spike patterns; 4 challenge modes (Speed Trial, Precision, Noise Gauntlet, Streak) with leaderboards |
+| **Explore** | Live temporal spike dynamics; BCI cursor control simulator; hierarchical brain network (M1, PMd, PPC, SMA); PCA neural manifold |
+| **Analyze** | Noise vs. performance curves, normal vs. lesioned populations, data export (NPZ/CSV) |
 
 ### Decoders
 
@@ -72,32 +67,62 @@ Simulates direction-tuned neural populations using cosine tuning curves and lets
 
 ```
 decode-my-brain/
-├── app.py                  # Streamlit UI (10-tab interface, sidebar controls)
-├── simulation.py           # Neural population modeling & spike generation
-├── decoders.py             # Decoder implementations (PV, ML, Kalman)
-├── visualization.py        # Plotly interactive plots
-├── challenges.py           # Gamification (5 modes, scoring, leaderboards)
-├── utils.py                # Circular angle math, data export
-├── config.py               # Centralized constants
-├── requirements.txt        # Production dependencies (pinned with ~=)
-├── requirements-dev.txt    # Dev dependencies (pytest, ruff)
-├── runtime.txt             # Python version specification
-├── Dockerfile              # Container deployment
+├── app.py                      # Streamlit entry point (multipage nav, sidebar controls)
+├── config.py                   # Centralized constants
+├── challenges.py               # Game modes, scoring, achievements, leaderboards
+├── utils.py                    # Circular angle math, data export
+├── pages/
+│   ├── setup.py                # Simulation overview
+│   ├── learn.py                # Tuning curve visualization + decoder walkthrough
+│   ├── play.py                 # Game mode + challenge modes
+│   ├── explore.py              # Live activity, BCI, brain areas, neural manifold
+│   └── analyze.py              # Noise analysis, lesion comparison, data export
+├── simulation/
+│   ├── __init__.py             # Re-exports all public symbols
+│   ├── core.py                 # NeuronPopulation, tuning, spike generation
+│   ├── temporal.py             # Temporal dynamics (adaptation, refractory, bursting)
+│   └── hierarchy.py            # BrainArea, HierarchicalNetwork
+├── decoders/
+│   ├── __init__.py             # Re-exports all public symbols
+│   ├── base.py                 # Decoder ABC, shared log-likelihood computation
+│   ├── direction.py            # PopulationVector, MaximumLikelihood, NaiveBayes
+│   ├── kalman.py               # KalmanFilterDecoder (state-space model)
+│   └── evaluation.py           # evaluate_decoder, compare_decoders
+├── visualization/
+│   ├── __init__.py             # Re-exports all public symbols
+│   ├── colors.py               # Color constants, direction-based HSL mapping
+│   ├── tuning.py               # Tuning curves, population bar/polar
+│   ├── raster.py               # Spike heatmaps, temporal raster snapshots
+│   ├── bci.py                  # BCI canvas, metrics display
+│   ├── walkthrough.py          # Step-by-step PV/ML decoder visualizations
+│   ├── manifold.py             # PCA, neural manifold 2D/3D
+│   ├── network.py              # Brain connectivity, area comparison, leaderboard
+│   └── analysis.py             # Noise curves, condition comparison, likelihood
+├── engine/
+│   ├── __init__.py
+│   └── game.py                 # GameEngine, GameResult, BCISimulator
+├── tests/
+│   ├── conftest.py             # Shared fixtures
+│   ├── test_config.py          # 8 tests: centralized constants
+│   ├── test_utils.py           # 30 tests: angle math, exports, formatting
+│   ├── test_simulation.py      # 67 tests: tuning, populations, trials, temporal, hierarchy
+│   ├── test_decoders.py        # 47 tests: PV, ML, NaiveBayes, Kalman, evaluation
+│   ├── test_challenges.py      # 64 tests: scoring, lifecycle, leaderboard I/O, achievements
+│   ├── test_visualization.py   # 52 tests: plot smoke tests, edge cases, manifold, colors
+│   ├── test_engine.py          # 14 tests: game logic, BCI simulator
+│   ├── test_integration.py     # 10 tests: end-to-end pipelines
+│   └── test_pages.py           # 5 tests: Streamlit AppTest page smoke tests
+├── requirements.txt            # Production dependencies (pinned with ~=)
+├── requirements-dev.txt        # Dev dependencies (pytest, pytest-cov, ruff)
+├── runtime.txt                 # Python version specification
+├── Dockerfile                  # Container deployment
 ├── .dockerignore
 ├── .gitignore
 ├── .streamlit/
-│   └── config.toml         # Streamlit server config
-├── .github/
-│   └── workflows/
-│       └── ci.yml          # GitHub Actions (lint + test)
-└── tests/
-    ├── conftest.py          # Shared fixtures
-    ├── test_utils.py        # 5 tests: angle math
-    ├── test_simulation.py   # 5 tests: tuning, population, trials
-    ├── test_decoders.py     # 5 tests: PV, ML, Kalman, evaluation
-    ├── test_challenges.py   # 3 tests: scoring, lifecycle
-    ├── test_visualization.py # 1 test: plot smoke test
-    └── test_integration.py  # 1 test: end-to-end pipeline
+│   └── config.toml             # Streamlit server config
+└── .github/
+    └── workflows/
+        └── ci.yml              # GitHub Actions (lint + test + coverage)
 ```
 
 ## Development
@@ -114,7 +139,7 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-20 tests covering utils, simulation, decoders, challenges, visualization, and end-to-end integration.
+297 tests covering config, utils, simulation, decoders, challenges, visualization, engine, page rendering, and end-to-end integration.
 
 ### Lint
 
@@ -124,12 +149,12 @@ ruff check .
 
 ### CI
 
-GitHub Actions runs `ruff check` and `pytest` on every push and pull request.
+GitHub Actions runs `ruff check`, `pytest` with coverage (`--cov-fail-under=60`), on every push and pull request.
 
 ## Requirements
 
 - Python 3.12+
-- Streamlit ~= 1.28
+- Streamlit ~= 1.36
 - NumPy ~= 1.24
 - SciPy ~= 1.10
 - Plotly ~= 5.18
@@ -139,12 +164,12 @@ GitHub Actions runs `ruff check` and `pytest` on every push and pull request.
 ## For Educators
 
 1. **Start simple** -- begin with 20-30 neurons to see clear tuning patterns
-2. **Explore tuning** -- use the Visualize tab to explain population coding
+2. **Explore tuning** -- use the Learn page to explain population coding
 3. **Add noise** -- increase variance scale to show how noise degrades decoding
-4. **Compare decoders** -- use Learn Decoding to walk through PV vs ML step by step
-5. **Lesion effects** -- Analysis tab demonstrates population coding redundancy
+4. **Compare decoders** -- use the Learn Decoding tab to walk through PV vs ML step by step
+5. **Lesion effects** -- Analyze page demonstrates population coding redundancy
 6. **Game mode** -- let students compete to internalize the decoding challenge
-7. **BCI demo** -- show how Kalman filtering enables real-time cursor control
+7. **BCI demo** -- Explore page shows how Kalman filtering enables real-time cursor control
 
 ## License
 

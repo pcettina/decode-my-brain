@@ -397,3 +397,91 @@ def test_color_constants():
     assert viz.TRUE_COLOR == '#3498db'
     assert viz.USER_COLOR == '#2ecc71'
     assert viz.MODEL_COLOR == '#e67e22'
+
+
+# ── Edge case tests ───────────────────────────────────────────────────────
+
+class TestVisualizationEdgeCases:
+    """Edge cases: single neuron, empty data, zero variance, max neurons."""
+
+    def test_single_neuron_tuning_curves(self):
+        pop = generate_neuron_population(n_neurons=1, seed=0)
+        viz = _import_viz()
+        fig = viz.plot_tuning_curves(pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_single_neuron_population_bar(self):
+        pop = generate_neuron_population(n_neurons=1, seed=0)
+        spikes = simulate_trial(0.5, pop, seed=0)
+        viz = _import_viz()
+        fig = viz.plot_population_bar(spikes, pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_single_neuron_raster_heatmap(self):
+        pop = generate_neuron_population(n_neurons=1, seed=0)
+        spikes = simulate_trial(0.5, pop, seed=0)
+        viz = _import_viz()
+        fig = viz.plot_raster_heatmap(spikes, pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_zero_spike_counts(self):
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        viz = _import_viz()
+        zeros = np.zeros(8, dtype=int)
+        fig = viz.plot_population_bar(zeros, pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_zero_spike_raster_heatmap(self):
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        viz = _import_viz()
+        zeros = np.zeros(8, dtype=int)
+        fig = viz.plot_raster_heatmap(zeros, pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_uniform_spike_counts(self):
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        viz = _import_viz()
+        uniform = np.full(8, 5)
+        fig = viz.plot_population_bar(uniform, pop)
+        assert isinstance(fig, go.Figure)
+
+    def test_max_neurons_tuning_curves(self):
+        pop = generate_neuron_population(n_neurons=200, seed=0)
+        viz = _import_viz()
+        fig = viz.plot_tuning_curves(pop)
+        assert isinstance(fig, go.Figure)
+        # Should have <= 8 direction-bin traces (plus optional vline)
+        assert len(fig.data) <= 9
+
+    def test_empty_spike_times_raster_snapshot(self):
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        viz = _import_viz()
+        empty_times = [[] for _ in range(8)]
+        fig = viz.create_spike_raster_snapshot(
+            empty_times, pop, current_time_ms=100, window_ms=100
+        )
+        assert isinstance(fig, go.Figure)
+
+    def test_single_trial_manifold(self):
+        """PCA with a single trial should still return a valid result."""
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        spikes = simulate_trial(1.0, pop, seed=0)
+        viz = _import_viz()
+        # Single sample: n_components capped to min(n_samples, n_features)
+        data, model, var = viz.compute_neural_manifold(
+            spikes.reshape(1, -1), n_components=1
+        )
+        assert data.shape == (1, 1)
+
+    def test_polar_comparison_no_optional(self):
+        viz = _import_viz()
+        fig = viz.plot_polar_comparison(1.0)
+        assert isinstance(fig, go.Figure)
+        assert len(fig.data) >= 1
+
+    def test_population_bar_polar_zero_spikes(self):
+        pop = generate_neuron_population(n_neurons=8, seed=0)
+        viz = _import_viz()
+        zeros = np.zeros(8, dtype=int)
+        fig = viz.plot_population_bar(zeros, pop, as_polar=True)
+        assert isinstance(fig, go.Figure)

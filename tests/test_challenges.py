@@ -12,11 +12,13 @@ from challenges import (
     AchievementManager,
     create_default_achievements,
     CHALLENGE_CONFIGS,
+    SCORING_DESCRIPTIONS,
     score_speed_trial,
     score_precision,
     score_noise_gauntlet,
     score_streak,
     score_area_expert,
+    score_breakdown,
 )
 
 
@@ -489,3 +491,64 @@ def test_default_achievements_count():
     assert len(achievements) == 10
     ids = [a.id for a in achievements]
     assert len(set(ids)) == 10  # all unique
+
+
+# ── SCORING_DESCRIPTIONS ───────────────────────────────────────────────────
+
+class TestScoringDescriptions:
+    def test_all_modes_have_descriptions(self):
+        for mode in [ChallengeMode.SPEED_TRIAL, ChallengeMode.PRECISION,
+                     ChallengeMode.NOISE_GAUNTLET, ChallengeMode.STREAK,
+                     ChallengeMode.AREA_EXPERT]:
+            assert mode.value in SCORING_DESCRIPTIONS
+
+    def test_descriptions_are_nonempty_strings(self):
+        for desc in SCORING_DESCRIPTIONS.values():
+            assert isinstance(desc, str) and len(desc) > 10
+
+
+# ── score_breakdown ────────────────────────────────────────────────────────
+
+class TestScoreBreakdown:
+    def _make_result(self, mode, **kwargs):
+        defaults = dict(
+            score=50.0, trials_completed=5, mean_error=20.0,
+            best_error=10.0, worst_error=30.0, time_taken=30.0,
+            streak_length=3, noise_level_reached=1.0,
+        )
+        defaults.update(kwargs)
+        return ChallengeResult(mode=mode, **defaults)
+
+    def test_speed_trial_breakdown(self):
+        r = self._make_result(ChallengeMode.SPEED_TRIAL, score=25.0,
+                              trials_completed=5, mean_error=20.0)
+        bd = score_breakdown(r)
+        assert 'Total' in bd
+        assert bd['Total'] == 25.0
+        assert bd['Base (trials x 10)'] == 50
+
+    def test_precision_breakdown(self):
+        r = self._make_result(ChallengeMode.PRECISION, score=85.0,
+                              mean_error=15.0)
+        bd = score_breakdown(r)
+        assert bd['Total'] == 85.0
+        assert 'Base (100 - mean error)' in bd
+
+    def test_noise_gauntlet_breakdown(self):
+        r = self._make_result(ChallengeMode.NOISE_GAUNTLET, score=125.0,
+                              noise_level_reached=1.0)
+        bd = score_breakdown(r)
+        assert bd['Total'] == 125.0
+        assert bd['Noise level reached x 100'] == 100.0
+
+    def test_streak_breakdown(self):
+        r = self._make_result(ChallengeMode.STREAK, score=32.5,
+                              streak_length=3)
+        bd = score_breakdown(r)
+        assert bd['Total'] == 32.5
+        assert bd['Streak x 10'] == 30
+
+    def test_area_expert_breakdown(self):
+        r = self._make_result(ChallengeMode.AREA_EXPERT, score=75.0)
+        bd = score_breakdown(r)
+        assert bd['Total'] == 75.0

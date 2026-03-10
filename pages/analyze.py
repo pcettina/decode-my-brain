@@ -1,4 +1,13 @@
-"""Analyze page - Noise analysis, lesion comparison, and data export."""
+"""Analyze page - Noise analysis, lesion comparison, and data export.
+
+Provides three analysis modes selected via a dropdown:
+  - **Noise vs Performance**: sweeps variance scale and plots decoder
+    error vs. noise level for PV or ML decoders.
+  - **Normal vs Lesioned**: compares decoder accuracy between intact
+    and lesioned populations (reduced modulation or baseline).
+  - **Export Data**: download spike counts, directions, and neuron
+    parameters as NPZ or CSV.
+"""
 
 import logging
 

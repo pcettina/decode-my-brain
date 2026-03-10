@@ -1,4 +1,9 @@
-"""Setup page - Simulation overview and configuration summary."""
+"""Setup page - Simulation overview and configuration summary.
+
+Displays population statistics (neuron count, trial count, mean/std firing
+rate) computed from the current simulation stored in session state.
+Simulation parameters are configured via the sidebar in app.py.
+"""
 
 import streamlit as st
 

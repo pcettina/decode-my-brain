@@ -1,4 +1,15 @@
-"""Explore page - Live activity, BCI, brain areas, and neural manifold."""
+"""Explore page - Live activity, BCI, brain areas, and neural manifold.
+
+Contains four tabs:
+  - **Live Activity**: temporal spike simulation with adaptation, refractory
+    periods, and burst firing.  View raster snapshots at any time point.
+  - **BCI Simulator**: cursor control using population-vector decoding.
+    Adjust speed and noise to see how decoding accuracy affects BCI control.
+  - **Brain Areas**: hierarchical network (M1, PMd, PPC, SMA) with
+    inter-area connectivity, per-area decoding comparison.
+  - **Neural Manifold**: PCA dimensionality reduction of population
+    activity with 2D/3D visualization and variance-explained plots.
+"""
 
 import logging
 

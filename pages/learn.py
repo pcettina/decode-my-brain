@@ -1,4 +1,13 @@
-"""Learn page - Visualize neural code and learn decoding step-by-step."""
+"""Learn page - Visualize neural code and learn decoding step-by-step.
+
+Contains two tabs:
+  - **Visualize Neural Code**: tuning curves with opacity/trial highlight
+    controls, single-trial spike heatmaps, population bar/polar plots,
+    and an expandable time-binned raster.
+  - **Learn Decoding**: a 4-step interactive walkthrough for both
+    Population Vector and Maximum Likelihood decoders.  Shows how spike
+    counts are converted to direction estimates.
+"""
 
 import numpy as np
 import streamlit as st
