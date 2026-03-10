@@ -1,134 +1,151 @@
-# 🧠 Decode My Brain
+# Decode My Brain
 
-An interactive neuroscience visualization app for exploring neural coding and decoding concepts.
+Interactive neuroscience education app for exploring neural population coding, decoding, and brain-computer interfaces through gamified challenges.
 
-## Overview
-
-This app simulates a population of direction-tuned neurons and demonstrates:
-- **Neural Tuning Curves**: How neurons respond to different movement directions
-- **Population Coding**: How direction is represented by the combined activity of many neurons
-- **Decoding**: How we can infer movement direction from neural activity
-- **Game Mode**: Test your ability to decode direction from spike patterns against a model decoder!
-
-Perfect for neuroscience educators, students, or anyone curious about how the brain encodes information.
+Built with Streamlit, NumPy, SciPy, and Plotly.
 
 ## Quick Start
 
-### Installation
-
 ```bash
-# Clone or download this repository
-cd NeuroVisualizationApp
+# Clone the repository
+git clone https://github.com/yourusername/decode-my-brain.git
+cd decode-my-brain
 
-# Create a virtual environment (optional but recommended)
+# Create virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-```
 
-### Running the App
-
-```bash
+# Run the app
 streamlit run app.py
 ```
 
-The app will open in your default web browser at `http://localhost:8501`.
+Opens at `http://localhost:8501`. A demo simulation (50 neurons, 20 trials) loads automatically.
+
+### Docker
+
+```bash
+docker build -t decode-my-brain .
+docker run -p 8501:8501 decode-my-brain
+```
+
+## What It Does
+
+Simulates direction-tuned neural populations using cosine tuning curves and lets users explore how the brain encodes and decodes movement direction.
+
+**Core model:** Each neuron fires according to `lambda(theta) = r0 + k * cos(theta - mu)`, where `r0` is baseline rate, `k` is modulation depth, and `mu` is the neuron's preferred direction. Spikes are generated via Poisson process with optional overdispersion (negative binomial) or underdispersion (clipped Gaussian).
 
 ## Features
 
-### 📊 Tab 1: Simulation Controls
-- Configure the neural population (number of neurons, baseline rate, modulation depth)
-- Set trial parameters (duration, noise level, number of trials)
-- Run simulations and view summary statistics
+### 10 Interactive Tabs
 
-### 👁️ Tab 2: Visualize Neural Code
-- **Tuning Curves**: See how each neuron responds to different directions
-- **Spike Heatmaps**: View spike counts across the population
-- **Population Activity**: Bar and polar plots of neural activity
-- **Time-Binned Rasters**: Explore activity across time
+| Tab | What it does |
+|-----|-------------|
+| **Setup** | View simulation summary stats (controls are in the sidebar) |
+| **Visualize** | Tuning curves, spike heatmaps, population bar/polar plots |
+| **Learn Decoding** | Step-by-step walkthrough of Population Vector and ML decoders |
+| **Game** | Guess movement direction from spike patterns, compete against the model |
+| **Challenges** | 5 timed/scored modes: Speed Trial, Precision, Noise Gauntlet, Streak, Area Expert |
+| **Live Activity** | Real-time temporal spike dynamics with adaptation, refractory periods, bursting |
+| **BCI Simulator** | Kalman filter-based cursor control from neural activity |
+| **Brain Areas** | Hierarchical network (M1, PMd, PPC, SMA) with inter-area connectivity |
+| **Neural Manifold** | PCA dimensionality reduction of population activity |
+| **Analysis** | Noise vs. performance curves, normal vs. lesioned populations, data export |
 
-### 🎮 Tab 3: Decode My Brain (Game Mode)
-- Challenge yourself to guess the hidden movement direction from neural activity
-- Compete against model decoders (Population Vector or Maximum Likelihood)
-- Track your performance with a running scoreboard
-- See detailed results with polar comparison plots
+### Decoders
 
-### 🔬 Tab 4: Analysis
-- **Noise vs Performance**: Explore how decoder accuracy changes with neural variability
-- **Normal vs Lesioned**: Compare populations with reduced tuning strength
-- **Export Data**: Download simulation data in NPZ or CSV format
+- **Population Vector** -- weighted vector sum of preferred directions
+- **Maximum Likelihood** -- Poisson log-likelihood maximization over direction grid (vectorized)
+- **Kalman Filter** -- state-space model for continuous BCI decoding with Joseph-form covariance update
 
-## The Neural Model
+### Simulation Features
 
-Each neuron has a **preferred direction** and responds according to a cosine tuning curve:
+- Configurable population size (10-200 neurons), firing rates, modulation depth
+- Poisson, negative binomial (overdispersed), or Gaussian (underdispersed) spike generation
+- Temporal dynamics: spike-rate adaptation, absolute/relative refractory periods, burst firing
+- Hierarchical brain network with feedforward/feedback connections
+- Reproducible via `np.random.default_rng()` with child-seed threading
 
-```
-λ(θ) = r₀ + k · cos(θ − μ)
-```
-
-Where:
-- `λ(θ)` = firing rate for direction θ
-- `r₀` = baseline firing rate (Hz)
-- `k` = modulation depth (Hz)
-- `μ` = preferred direction of the neuron
-
-Spike counts are generated from a Poisson distribution with rate `λ(θ) × T`, where T is the trial duration.
-
-## Decoders
-
-### Population Vector Decoder
-Estimates direction by computing the weighted vector sum of preferred directions:
+## Project Structure
 
 ```
-θ̂ = atan2(Σ nᵢ sin(μᵢ), Σ nᵢ cos(μᵢ))
+decode-my-brain/
+├── app.py                  # Streamlit UI (10-tab interface, sidebar controls)
+├── simulation.py           # Neural population modeling & spike generation
+├── decoders.py             # Decoder implementations (PV, ML, Kalman)
+├── visualization.py        # Plotly interactive plots
+├── challenges.py           # Gamification (5 modes, scoring, leaderboards)
+├── utils.py                # Circular angle math, data export
+├── config.py               # Centralized constants
+├── requirements.txt        # Production dependencies (pinned with ~=)
+├── requirements-dev.txt    # Dev dependencies (pytest, ruff)
+├── runtime.txt             # Python version specification
+├── Dockerfile              # Container deployment
+├── .dockerignore
+├── .gitignore
+├── .streamlit/
+│   └── config.toml         # Streamlit server config
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions (lint + test)
+└── tests/
+    ├── conftest.py          # Shared fixtures
+    ├── test_utils.py        # 5 tests: angle math
+    ├── test_simulation.py   # 5 tests: tuning, population, trials
+    ├── test_decoders.py     # 5 tests: PV, ML, Kalman, evaluation
+    ├── test_challenges.py   # 3 tests: scoring, lifecycle
+    ├── test_visualization.py # 1 test: plot smoke test
+    └── test_integration.py  # 1 test: end-to-end pipeline
 ```
 
-Where `nᵢ` is the spike count and `μᵢ` is the preferred direction of neuron i.
+## Development
 
-### Maximum Likelihood Decoder
-Computes the log-likelihood over a grid of candidate directions assuming independent Poisson neurons:
+### Install dev dependencies
 
-```
-θ̂ = argmax Σᵢ [nᵢ log λᵢ(θ) - λᵢ(θ)]
+```bash
+pip install -r requirements-dev.txt
 ```
 
-## File Structure
+### Run tests
 
+```bash
+pytest tests/ -v
 ```
-NeuroVisualizationApp/
-├── app.py              # Streamlit entry point with tabbed UI
-├── simulation.py       # Neural population & spike generation
-├── decoders.py         # Population vector & ML decoders
-├── visualization.py    # Plotly plotting functions
-├── utils.py            # Angle math & export helpers
-├── requirements.txt    # Python dependencies
-└── README.md           # This file
+
+20 tests covering utils, simulation, decoders, challenges, visualization, and end-to-end integration.
+
+### Lint
+
+```bash
+ruff check .
 ```
+
+### CI
+
+GitHub Actions runs `ruff check` and `pytest` on every push and pull request.
 
 ## Requirements
 
-- Python 3.8+
-- Streamlit 1.28+
-- NumPy 1.24+
-- SciPy 1.10+
-- Plotly 5.18+
-- Pandas 2.0+
+- Python 3.12+
+- Streamlit ~= 1.28
+- NumPy ~= 1.24
+- SciPy ~= 1.10
+- Plotly ~= 5.18
+- Pandas ~= 2.0
+- scikit-learn ~= 1.3
 
-## Tips for Educators
+## For Educators
 
-1. **Start Simple**: Begin with a small population (20-30 neurons) to see clear patterns
-2. **Explore Tuning**: Use the visualization tab to explain how neurons encode direction
-3. **Add Noise**: Increase variance scale to show how noise affects decoding
-4. **Lesion Effects**: Use the analysis tab to demonstrate population coding redundancy
-5. **Game Mode**: Let students compete to understand the decoding challenge
+1. **Start simple** -- begin with 20-30 neurons to see clear tuning patterns
+2. **Explore tuning** -- use the Visualize tab to explain population coding
+3. **Add noise** -- increase variance scale to show how noise degrades decoding
+4. **Compare decoders** -- use Learn Decoding to walk through PV vs ML step by step
+5. **Lesion effects** -- Analysis tab demonstrates population coding redundancy
+6. **Game mode** -- let students compete to internalize the decoding challenge
+7. **BCI demo** -- show how Kalman filtering enables real-time cursor control
 
 ## License
 
-MIT License - feel free to use, modify, and share!
-
----
-
-*Built with ❤️ for neuroscience education*
-
+MIT License
