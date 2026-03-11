@@ -28,6 +28,8 @@ from utils import radians_to_degrees, export_to_npz, export_to_csv
 
 logger = logging.getLogger(__name__)
 
+st.session_state.visited_analyze = True
+
 if not st.session_state.get('simulated', False):
     st.warning("Please run a simulation using the sidebar controls.")
     st.stop()

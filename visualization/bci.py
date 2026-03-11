@@ -101,12 +101,14 @@ def create_bci_canvas(
     fig.update_layout(
         title="BCI Cursor Control",
         xaxis=dict(
+            title="Horizontal Position",
             range=[-canvas_size/2, canvas_size/2],
             showgrid=True,
             zeroline=True,
             scaleanchor='y'
         ),
         yaxis=dict(
+            title="Vertical Position",
             range=[-canvas_size/2, canvas_size/2],
             showgrid=True,
             zeroline=True

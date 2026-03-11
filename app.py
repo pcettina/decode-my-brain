@@ -29,7 +29,7 @@ from challenges import ChallengeManager, AchievementManager
 
 st.set_page_config(
     page_title="Decode My Brain",
-    page_icon="🧠",
+    page_icon=":material/psychology:",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -41,9 +41,17 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Custom CSS
+# Custom CSS — fonts, tab styling, dark mode support, accessibility
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+    html, body, [class*="st-"] {
+        font-family: 'Fira Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    code, pre, .stCode, [data-testid="stMetricValue"] {
+        font-family: 'Fira Code', 'Source Code Pro', monospace !important;
+    }
     .stTabs [data-baseweb="tab-list"] {
         gap: 24px;
     }
@@ -172,6 +180,14 @@ def init_session_state():
     if 'challenge_spikes' not in st.session_state:
         st.session_state.challenge_spikes = None
 
+    # Onboarding / page visit tracking
+    if 'onboarded' not in st.session_state:
+        st.session_state.onboarded = False
+    for visit_key in ['visited_setup', 'visited_learn', 'visited_play',
+                      'visited_explore', 'visited_analyze']:
+        if visit_key not in st.session_state:
+            st.session_state[visit_key] = False
+
     # Auto-generate demo simulation so the app isn't empty on first load
     if not st.session_state.simulated:
         demo_neurons = generate_neuron_population(50, seed=42)
@@ -189,6 +205,11 @@ def init_session_state():
 
 init_session_state()
 
+# First-visit onboarding
+if not st.session_state.onboarded:
+    st.toast("Welcome! Start with **Learn** to explore neural coding, or jump to **Play** to test your skills.", icon=":material/waving_hand:")
+    st.session_state.onboarded = True
+
 
 # =============================================================================
 # Sidebar - About & Simulation Controls
@@ -198,33 +219,35 @@ with st.sidebar:
     st.title("Decode My Brain")
     st.markdown("---")
 
-    st.markdown("""
-    ### About This App
+    with st.expander("About This App", expanded=False):
+        st.markdown("""
+        This interactive tool demonstrates how the brain might encode
+        and decode movement direction using populations of neurons.
 
-    This interactive tool demonstrates how the brain might encode
-    and decode movement direction using populations of neurons.
+        **Key concepts:**
+        - **Tuning curves**: Each neuron responds most strongly to
+          a preferred direction
+        - **Population coding**: Direction is represented by the
+          combined activity of many neurons
+        - **Decoding**: We can infer direction from neural activity
+        """)
 
-    **Key concepts:**
-    - **Tuning curves**: Each neuron responds most strongly to
-      a preferred direction
-    - **Population coding**: Direction is represented by the
-      combined activity of many neurons
-    - **Decoding**: We can infer direction from neural activity
+    with st.expander("Quick Start Guide", expanded=not st.session_state.get('onboarded', False)):
+        guide_steps = [
+            (":material/settings: **Setup** — Review your simulation parameters", "visited_setup"),
+            (":material/school: **Learn** — Explore tuning curves and walk through decoders", "visited_learn"),
+            (":material/videogame_asset: **Play** — Compete against the model decoder", "visited_play"),
+            (":material/explore: **Explore** — Live activity, BCI, brain areas, manifolds", "visited_explore"),
+            (":material/analytics: **Analyze** — Investigate noise effects and lesions", "visited_analyze"),
+        ]
+        for step_text, step_key in guide_steps:
+            checked = st.session_state.get(step_key, False)
+            st.checkbox(step_text, value=checked, key=f"guide_{step_key}", disabled=True)
 
-    ---
-
-    ### How to Use
-
-    1. **Setup**: Configure neurons and generate trials
-    2. **Learn**: Explore tuning curves and decoder algorithms
-    3. **Play**: Compete against the model decoder!
-    4. **Explore**: Live activity, BCI, brain areas, manifolds
-    5. **Analyze**: Investigate noise effects and lesions
-
-    ---
-
-    *Built for teaching neural coding concepts*
-    """)
+        completed = sum(1 for _, k in guide_steps if st.session_state.get(k, False))
+        st.progress(completed / len(guide_steps))
+        if completed == len(guide_steps):
+            st.success("You've explored all sections!")
 
     st.markdown("---")
     st.subheader("Simulation Controls")
@@ -327,8 +350,8 @@ pg.run()
 
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: gray; font-size: 12px;'>
-    <p>Decode My Brain | Built with Streamlit & Plotly</p>
+<div style='text-align: center; color: gray; font-size: 12px; font-family: Fira Sans, sans-serif;'>
+    <p>Decode My Brain &mdash; Built with Streamlit &amp; Plotly</p>
     <p>An interactive tool for exploring neural coding and decoding concepts</p>
 </div>
 """, unsafe_allow_html=True)

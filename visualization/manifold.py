@@ -214,7 +214,7 @@ def plot_variance_explained(
             y=cumulative * 100,
             mode='lines+markers',
             name='Cumulative',
-            line=dict(color='#e74c3c', width=2),
+            line=dict(color='#c0392b', width=2),
             marker=dict(size=8)
         ),
         secondary_y=True
@@ -222,6 +222,7 @@ def plot_variance_explained(
 
     fig.update_layout(
         title="Variance Explained by Principal Components",
+        xaxis_title="Principal Component",
         template='plotly_white',
         height=400,
         showlegend=True,
@@ -278,7 +279,7 @@ def plot_manifold_by_area(
         fig.update_yaxes(title_text='PC2', row=1, col=i+1)
 
     fig.update_layout(
-        title="Neural Manifolds Across Brain Areas",
+        title="Neural Manifolds Across Brain Areas (colored by movement direction)",
         template='plotly_white',
         height=400
     )

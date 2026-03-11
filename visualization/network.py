@@ -132,14 +132,14 @@ def plot_leaderboard(
     score_vals = [f"{s.get('score', 0):.1f}°" for s in scores]
     trials = [s.get('trials', 0) for s in scores]
 
-    # Highlight current score
-    colors = ['#d4edda' if current_score and abs(s.get('score', 0) - current_score) < 0.1
-              else 'white' for s in scores]
+    # Highlight current score — semi-transparent for dark mode support
+    colors = ['rgba(39, 174, 96, 0.25)' if current_score and abs(s.get('score', 0) - current_score) < 0.1
+              else 'rgba(128, 128, 128, 0.05)' for s in scores]
 
     fig = go.Figure(data=[go.Table(
         header=dict(
             values=['Rank', 'Player', 'Score', 'Trials'],
-            fill_color='#2c3e50',
+            fill_color='rgba(44, 62, 80, 0.9)',
             font=dict(color='white', size=14),
             align='center'
         ),

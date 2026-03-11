@@ -84,19 +84,20 @@ def plot_condition_comparison(
     fig.add_trace(go.Box(
         y=normal_errors,
         name='Normal',
-        marker_color='#2ecc71',
+        marker_color='#27ae60',
         boxmean='sd'
     ))
 
     fig.add_trace(go.Box(
         y=lesioned_errors,
         name='Lesioned',
-        marker_color='#e74c3c',
+        marker_color='#c0392b',
         boxmean='sd'
     ))
 
     fig.update_layout(
         title="Decoder Performance: Normal vs. Lesioned",
+        xaxis_title="Condition",
         yaxis_title="Angular Error (degrees)",
         template='plotly_white',
         height=400,
@@ -198,14 +199,18 @@ def create_scoreboard_table(
     model_errors = [f"{r['model_error']:.1f}°" for r in rounds]
     winners = [r['winner'] for r in rounds]
 
-    # Color cells based on winner
-    user_colors = ['#d4edda' if w == 'User' else '#ffffff' for w in winners]
-    model_colors = ['#f8d7da' if w == 'Model' else '#ffffff' for w in winners]
+    # Color cells based on winner — using semi-transparent overlays for dark mode support
+    user_colors = ['rgba(39, 174, 96, 0.2)' if w == 'User' else 'rgba(128, 128, 128, 0.05)' for w in winners]
+    model_colors = ['rgba(192, 57, 43, 0.2)' if w == 'Model' else 'rgba(128, 128, 128, 0.05)' for w in winners]
+    winner_colors = ['rgba(39, 174, 96, 0.25)' if w == 'User'
+                     else 'rgba(192, 57, 43, 0.25)' if w == 'Model'
+                     else 'rgba(241, 196, 15, 0.25)'
+                     for w in winners]
 
     fig = go.Figure(data=[go.Table(
         header=dict(
             values=['Round', 'True', 'Your Guess', 'Model', 'Your Error', 'Model Error', 'Winner'],
-            fill_color='#34495e',
+            fill_color='rgba(52, 73, 94, 0.9)',
             font=dict(color='white', size=12),
             align='center'
         ),
@@ -213,14 +218,13 @@ def create_scoreboard_table(
             values=[round_nums, true_dirs, user_guesses, model_decodes,
                     user_errors, model_errors, winners],
             fill_color=[
-                ['white'] * len(rounds),
-                ['white'] * len(rounds),
+                ['rgba(128, 128, 128, 0.05)'] * len(rounds),
+                ['rgba(128, 128, 128, 0.05)'] * len(rounds),
                 user_colors,
                 model_colors,
                 user_colors,
                 model_colors,
-                ['#d4edda' if w == 'User' else '#f8d7da' if w == 'Model' else '#fff3cd'
-                 for w in winners]
+                winner_colors,
             ],
             align='center',
             height=25

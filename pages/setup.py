@@ -10,6 +10,8 @@ import streamlit as st
 from simulation import compute_firing_rate_stats
 
 
+st.session_state.visited_setup = True
+
 st.header("Simulation Overview")
 st.markdown("""
 Configure the neural population using the **sidebar controls**, then explore

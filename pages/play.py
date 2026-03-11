@@ -28,6 +28,8 @@ from visualization import (
 from utils import radians_to_degrees, angular_error_degrees
 
 
+st.session_state.visited_play = True
+
 if not st.session_state.get('simulated', False):
     st.warning("Please run a simulation using the sidebar controls.")
     st.stop()

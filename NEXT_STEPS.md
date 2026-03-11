@@ -61,7 +61,7 @@ Generated 2026-03-09, updated 2026-03-10.
 
 ## Tier 6: Features & Scale (Future, larger effort)
 
-- [ ] **Add first-visit onboarding** — `st.info` or toast on first load directing users to Learn page
+- [x] **Add first-visit onboarding** — `st.toast` on first load directing users to Learn or Play pages
 - [ ] **Add tutorial tooltips** — guided onboarding for first-time users (Streamlit `st.popover` or custom tour)
 - [ ] **Add more decoder options to game** — Kalman Filter decoder as a selectable model opponent
 - [ ] **Add data upload** — let users upload their own spike count matrices for decoding
@@ -70,19 +70,19 @@ Generated 2026-03-09, updated 2026-03-10.
 - [ ] **Add neural network decoder** — simple MLP or RNN decoder for comparison with classical methods
 - [ ] **Performance: cache simulation results** — if user re-runs same sidebar config, avoid resimulating from scratch
 - [ ] **Performance: cache PCA in analysis tab** — `compute_neural_manifold()` recomputes every render
-- [ ] **Custom font integration** — Fira Sans / Fira Code for science-dashboard identity
+- [x] **Custom font integration** — Fira Sans (UI) + Fira Code (metrics/data) via Google Fonts
 - [ ] **Brand color palette refinement** — consider indigo (`#6366F1`) + emerald (`#10B981`) as brand palette
 
 ---
 
-## Tier 7: UI/UX Improvements (Design polish)
+## Tier 7: UI/UX Improvements (Design polish) — DONE
 
-- [ ] **Replace emoji page icon** — `🧠` renders inconsistently; use Material icon or SVG favicon
-- [ ] **Remove `.metric-card` CSS** — unused (all pages use Streamlit's built-in `st.metric`)
+- [x] **Replace emoji page icon** — `🧠` replaced with `:material/psychology:` Material icon
+- [x] **Remove `.metric-card` CSS** — removed unused class
 - [ ] **Add skeleton loading states** — use `st.spinner` + placeholder layouts during heavy computations
-- [ ] **Convert sidebar guide to interactive stepper** — let users track progress through the 5-step guide
-- [ ] **Add Plotly chart accessibility** — ensure all charts have descriptive titles and axis labels for screen readers
-- [ ] **Dark mode compatibility audit** — test all custom CSS with Streamlit dark theme
+- [x] **Convert sidebar guide to interactive stepper** — expandable checklist with progress bar tracking page visits
+- [x] **Add Plotly chart accessibility** — all charts now have descriptive titles and axis labels
+- [x] **Dark mode compatibility** — all table colors use semi-transparent rgba(); fixed `#e74c3c` → `#c0392b` throughout
 
 ---
 
@@ -94,9 +94,9 @@ Generated 2026-03-09, updated 2026-03-10.
 | P1 | Testing | DONE | 30 new tests (12 viz, 7 scoring, 5 AppTest, 17 UI, 13 E2E) |
 | P2 | UX | DONE | Input consolidated, contrast fixed, reduced-motion, responsive CSS |
 | P3 | Deployment | DONE | CI matrix, Docker deploy to ghcr.io, pre-commit, Playwright E2E |
-| P4 | Code Quality | TODO | Type hints, ruff format, heading standardization |
-| P5 | Features | TODO | Onboarding, new decoders, data upload, tutorials |
-| P6 | Design Polish | TODO | Favicon, fonts, dark mode, loading states |
+| P4 | Design Polish | DONE | Favicon, fonts, onboarding, dark mode, chart accessibility |
+| P5 | Code Quality | TODO | Type hints, ruff format, heading standardization |
+| P6 | Features | TODO | New decoders, data upload, tutorials, caching |
 
 ---
 
