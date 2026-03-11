@@ -18,3 +18,6 @@ Thumbs.db
 .DS_Store
 data/leaderboards.json
 knowledge/
+tests/e2e/screenshots/*.png
+coverage.xml
+htmlcov/

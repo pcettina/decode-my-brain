@@ -53,19 +53,25 @@ st.markdown("""
         padding-right: 20px;
         font-size: 16px;
     }
-    .metric-card {
-        background-color: #f0f2f6;
-        border-radius: 10px;
-        padding: 15px;
-        margin: 5px;
-    }
     .winner-user {
-        color: #2ecc71;
+        color: #27ae60;
         font-weight: bold;
     }
     .winner-model {
-        color: #e74c3c;
+        color: #c0392b;
         font-weight: bold;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+    @media (max-width: 768px) {
+        .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+        .stTabs [data-baseweb="tab"] {
+            padding-left: 10px; padding-right: 10px; font-size: 14px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)

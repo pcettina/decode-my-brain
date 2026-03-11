@@ -7,3 +7,9 @@ PROJECT_AUDIT_REPORT.md
 .github/
 .pytest_cache/
 .ruff_cache/
+.pre-commit-config.yaml
+docker-compose.yml
+pyproject.toml
+requirements-e2e.txt
+knowledge/
+.claude/
